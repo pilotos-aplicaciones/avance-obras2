@@ -1,0 +1,1 @@
+// Módulo eliminado — funcionalidad no utilizada en esta versión.
