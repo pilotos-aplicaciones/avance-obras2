@@ -131,6 +131,16 @@ function _sc_renderCal() {
 // ── Selección de fecha ────────────────────────────────────────────────────────
 
 function _sc_seleccionarFecha(fecha) {
+  // PILOTO — solo lectura: no cambiar nada en pantalla si no se puede guardar
+  // (antes la fecha se veía "seleccionada" aunque el guardado se rechazara).
+  if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(_sc_id)) {
+    if (typeof interfaz_mostrarToast === 'function') {
+      interfaz_mostrarToast('Solo lectura: no eres el responsable de esta obra.', 'aviso', 4000);
+    }
+    const dd0 = document.getElementById('sc-cal-dropdown');
+    if (dd0) dd0.style.display = 'none';
+    return;
+  }
   _sc_semana = fecha;
   datos_guardarSemanaControl(_sc_id, { semana: fecha });
   const val = document.getElementById('sc-fecha-valor');
@@ -157,6 +167,13 @@ function _sc_registrarEventos() {
   // Abrir / cerrar dropdown
   btn?.addEventListener('click', e => {
     e.stopPropagation();
+    // PILOTO — solo lectura: ni siquiera abrir el calendario (solo mirar).
+    if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(_sc_id)) {
+      if (typeof interfaz_mostrarToast === 'function') {
+        interfaz_mostrarToast('Solo lectura: no eres el responsable de esta obra.', 'aviso', 4000);
+      }
+      return;
+    }
     const abrir = dd.style.display === 'none';
     dd.style.display = abrir ? 'block' : 'none';
     // En sidebar de escritorio (overflow-x:hidden), usar position:fixed

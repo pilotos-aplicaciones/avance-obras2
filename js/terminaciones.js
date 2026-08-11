@@ -253,9 +253,9 @@ function _mat_sidebarEscritorioHTML() {
 
     <div id="sidebar-fecha-slot" class="sidebar-fecha-slot"></div>
 
-    <button class="sidebar-guardar${hayPendiente ? ' mat-btn-pendiente' : ''}" id="mat-btn-guardar-avances">
+    ${_mat_soloLectura ? '' : `<button class="sidebar-guardar${hayPendiente ? ' mat-btn-pendiente' : ''}" id="mat-btn-guardar-avances">
       <span class="sidebar-icono">✓</span><span class="sidebar-texto"> Guardar avances</span>
-    </button>
+    </button>`}
 
     <div class="sidebar-sep"></div>
 
@@ -326,14 +326,14 @@ function _mat_toolbarMovilHTML() {
         ${filtroActActivo ? '<button class="movil-btn-icono movil-btn-limpiar-act" id="mat-btn-limpiar-filtro-act" title="Quitar filtro actividades">✕</button>' : ''}
       </div>
       <!-- sc-fecha-wrap se inyecta ANTES de ✓ por _mat_render() -->
-      <button class="movil-btn-guardar${hayPendiente ? ' mat-btn-pendiente' : ''}" id="mat-btn-guardar-avances" title="Guardar avances">✓</button>
+      ${_mat_soloLectura ? '' : `<button class="movil-btn-guardar${hayPendiente ? ' mat-btn-pendiente' : ''}" id="mat-btn-guardar-avances" title="Guardar avances">✓</button>
       <div class="mat-menu-wrap">
         <button class="movil-btn-icono" id="mat-btn-mas" title="Más opciones">•••</button>
         <div class="mat-menu-dropdown" id="mat-menu-dropdown" style="display:none">
           <button class="mat-menu-item" id="mat-btn-cargar">📂 Cargar respaldo JSON</button>
           <button class="mat-menu-item mat-menu-item-peligro" id="mat-btn-resetear">↺ Resetear avances</button>
         </div>
-      </div>
+      </div>`}
       <input type="file" id="mat-input-cargar" accept=".json" style="display:none">
     </div>
     ${msgCompleto}
@@ -1171,6 +1171,7 @@ function _mat_abrirInputInline(td) {
 
 function _mat_pasteHandler(e) {
   if (!_ancla) return;
+  if (_mat_soloLectura) return; // PILOTO: solo lectura, no se puede pegar sobre las celdas
   e.preventDefault();
   const filasPaste = e.clipboardData.getData('text').trim()
     .split(/\r?\n/).map(r => r.split('\t'));
@@ -1399,6 +1400,7 @@ function _mat_registrarEventos() {
   document.addEventListener('click', _mat_clickCerrarMenu);
 
   document.getElementById('mat-btn-resetear')?.addEventListener('click', () => {
+    if (_mat_soloLectura) return; // PILOTO: solo lectura, no se puede resetear
     const menuDropdownLocal = document.getElementById('mat-menu-dropdown');
     if (menuDropdownLocal) menuDropdownLocal.style.display = 'none';
     interfaz_mostrarModal(
@@ -1415,6 +1417,7 @@ function _mat_registrarEventos() {
 
   // ── Guardar avances → confirmación → Firebase ───────────────────────────────
   document.getElementById('mat-btn-guardar-avances')?.addEventListener('click', () => {
+    if (_mat_soloLectura) return; // PILOTO: solo lectura, no se puede guardar
     interfaz_mostrarModal(
       'Guardar avances',
       '¿Confirmas el guardado de los avances? Los datos se sincronizarán con todos los dispositivos.',
@@ -1843,6 +1846,7 @@ function _mat_exportarJSON() {
 // ── Importar JSON ─────────────────────────────────────────────────────────────
 
 function _mat_importarJSON(data) {
+  if (_mat_soloLectura) { interfaz_mostrarToast('Solo lectura: no eres el responsable de esta obra.', 'aviso', 4000); return; }
   if (!data || data.version !== 'coa-v1' || !data.proyecto || !data.matrices) {
     interfaz_mostrarToast('Archivo invalido. Debe ser un respaldo generado por esta app.', 'error');
     return;
@@ -1850,11 +1854,18 @@ function _mat_importarJSON(data) {
   var config = data.proyecto;
   var id     = config.id;
   if (!id) { interfaz_mostrarToast('El archivo no tiene un ID de proyecto valido.', 'error'); return; }
+  // PILOTO — restaurar un respaldo lo puede hacer el administrador o el
+  // responsable de ESA obra (recuperar su propio trabajo), a diferencia del
+  // asistente de configuración que es solo para administrador.
+  if (typeof _datos_puedeRestaurarRespaldo === 'function' && !_datos_puedeRestaurarRespaldo(id)) {
+    interfaz_mostrarToast('Solo el administrador o el responsable de esta obra puede restaurar este respaldo.', 'aviso', 4500);
+    return;
+  }
   interfaz_mostrarModal(
     'Cargar respaldo',
     'Se cargara el proyecto "' + config.nombre + '". Si ya existe un proyecto con este ID, sus avances seran reemplazados. Continuar?',
     function() {
-      datos_guardarProyecto(config);
+      _datos_escribirProyecto(config);
       datos_guardarMatrices(id, data.matrices);
       datos_limpiarPendiente(id);          // el respaldo cargado no tiene avances pendientes
       _mat_pendienteConsultado.add(id);    // no mostrar modal de "sesión anterior" al abrir
@@ -1872,6 +1883,7 @@ function _mat_importarJSON(data) {
 // Valores en Excel: 0, 0.25, 0.5, 0.75, 1  → ×100 en la app
 
 function _mat_importarExcel(file) {
+  if (_mat_soloLectura) { interfaz_mostrarToast('Solo lectura: no eres el responsable de esta obra.', 'aviso', 4000); return; }
   if (typeof XLSX === 'undefined') {
     interfaz_mostrarToast('La librería Excel no está lista. Reintenta en un momento.', 'error');
     return;

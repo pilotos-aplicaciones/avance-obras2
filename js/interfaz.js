@@ -256,13 +256,21 @@ function interfaz_mostrarToast(mensaje, tipo = 'exito', duracion = 3200) {
 // ── Navegación global ────────────────────────────────────────────────────────
 
 function _interfaz_registrarNavegacionGlobal() {
-  // Botón nuevo proyecto (inicio)
+  // Botón nuevo proyecto (inicio) — PILOTO: solo administrador
   document.getElementById('btn-nuevo-proyecto')?.addEventListener('click', () => {
+    if (typeof authp_esAdmin === 'function' && !authp_esAdmin()) {
+      interfaz_mostrarToast('Solo un administrador puede crear obras.', 'aviso', 4000);
+      return;
+    }
     router_ir('v-config');
   });
 
-  // Botón configurar desde vista proyecto
+  // Botón configurar desde vista proyecto — PILOTO: solo administrador
   document.getElementById('btn-config-proyecto')?.addEventListener('click', () => {
+    if (typeof authp_esAdmin === 'function' && !authp_esAdmin()) {
+      interfaz_mostrarToast('Solo un administrador puede configurar la obra.', 'aviso', 4000);
+      return;
+    }
     router_ir('v-config', { esEdicion: true, idProyecto: router_getProyectoActivo() });
   });
 

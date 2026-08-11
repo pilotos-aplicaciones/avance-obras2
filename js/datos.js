@@ -22,19 +22,10 @@ function _datos_guardarIndice(lista) {
 
 // ── Proyectos ────────────────────────────────────────────────────────────────
 
-function datos_guardarProyecto(config) {
-  // PILOTO — permiso para crear/editar configuración de obra:
-  // admin siempre; un usuario solo si es el responsable de una obra ya existente.
-  if (typeof authp_puedeEditar === 'function') {
-    const existe = !!datos_cargarProyecto(config.id);
-    const permitido = (typeof authp_esAdmin === 'function' && authp_esAdmin()) || (existe && authp_puedeEditar(config.id));
-    if (!permitido) {
-      if (typeof interfaz_mostrarToast === 'function') {
-        interfaz_mostrarToast('Solo un administrador (o el responsable de la obra) puede modificar la configuración.', 'aviso', 4500);
-      }
-      return;
-    }
-  }
+// Escritura real de la configuración — sin verificar permisos. Uso interno:
+// cada función pública (datos_guardarProyecto, datos_importarRespaldo,
+// _mat_importarJSON) verifica el permiso que corresponda ANTES de llamar aquí.
+function _datos_escribirProyecto(config) {
   config.modificadoEn = new Date().toISOString();
   if (!config.creadoEn) config.creadoEn = config.modificadoEn;
   localStorage.setItem(_PRE + 'proyecto_' + config.id, JSON.stringify(config));
@@ -45,6 +36,35 @@ function datos_guardarProyecto(config) {
   if (pos >= 0) idx[pos] = entrada; else idx.push(entrada);
   _datos_guardarIndice(idx);
   _fs_sync(config.id);
+}
+
+// PILOTO — ¿puede esta persona restaurar/crear la config de una obra a partir
+// de UN RESPALDO (JSON)? Admin siempre; o el responsable de esa obra (si ya
+// existe). Es más permisivo que crear/editar por el asistente a propósito:
+// restaurar tu propio respaldo es recuperar tu propio trabajo, no una edición
+// nueva de configuración.
+function _datos_puedeRestaurarRespaldo(id) {
+  const esAdmin  = (typeof authp_esAdmin === 'function')   ? authp_esAdmin()      : true;
+  const esEditor = (typeof authp_puedeEditar === 'function') ? authp_puedeEditar(id) : true;
+  return esAdmin || esEditor;
+}
+
+// Usada por el asistente (crear/editar obra paso a paso): SOLO administrador.
+// Devuelve true si guardó, false si lo bloqueó por falta de permiso — los
+// llamadores DEBEN revisar este valor antes de mostrar éxito o navegar.
+function datos_guardarProyecto(config) {
+  // PILOTO — permiso para crear/editar configuración de obra vía el asistente:
+  // SOLO administrador. (Restaurar un respaldo propio es otra función —
+  // datos_importarRespaldo / _mat_importarJSON — que sí permite al responsable
+  // de esa obra.)
+  if (typeof authp_esAdmin === 'function' && !authp_esAdmin()) {
+    if (typeof interfaz_mostrarToast === 'function') {
+      interfaz_mostrarToast('Solo un administrador puede crear o modificar la configuración de una obra.', 'aviso', 4500);
+    }
+    return false;
+  }
+  _datos_escribirProyecto(config);
+  return true;
 }
 
 function datos_cargarProyecto(id) {
@@ -255,7 +275,12 @@ function datos_importarRespaldo(jsonTexto) {
   const obj = JSON.parse(jsonTexto);
   if (!obj.proyecto || !obj.proyecto.id) throw new Error('Respaldo inválido');
   const id = obj.proyecto.id;
-  datos_guardarProyecto(obj.proyecto);
+  // PILOTO — restaurar un respaldo permite además al responsable de ESA obra
+  // (no solo al administrador): es recuperar su propio trabajo.
+  if (!_datos_puedeRestaurarRespaldo(id)) {
+    throw new Error('Solo el administrador o el responsable de esta obra puede importar este respaldo.');
+  }
+  _datos_escribirProyecto(obj.proyecto);
   datos_guardarMatrices(id, obj.matrices || {});
   datos_limpiarPendiente(id); // el respaldo cargado no tiene avances pendientes
   return id;

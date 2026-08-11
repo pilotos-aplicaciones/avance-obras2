@@ -472,12 +472,12 @@ function _cf_registrarEventosPaso() {
       btn.addEventListener('click', () => {
         const wrap = btn.closest('.act-agregar-wrap');
         if (!wrap) return;
+        const fase = parseInt(btn.dataset.fase);
         const inpCod = wrap.querySelector('.act-agregar-codigo');
         const inpNom = wrap.querySelector('.act-agregar-input');
         const codigo = (inpCod ? inpCod.value : '').trim() || _cf_siguienteCodigoCustom(fase);
         const nombre = (inpNom ? inpNom.value : '').trim();
         if (!nombre) { interfaz_mostrarToast('Ingresa un nombre para la actividad.', 'error'); return; }
-        const fase = parseInt(btn.dataset.fase);
         _cf_agregarActividadCustom(fase, codigo, nombre);
         _cf_renderizar();
       });
@@ -799,9 +799,15 @@ function configProyecto_registrarEventos() {
   });
 
   document.getElementById('cf-btn-guardar')?.addEventListener('click', () => {
+    // PILOTO — solo administrador puede crear/editar la configuración de una obra.
+    if (typeof authp_esAdmin === 'function' && !authp_esAdmin()) {
+      interfaz_mostrarToast('Solo un administrador puede crear o modificar la configuración de una obra.', 'aviso', 4500);
+      return;
+    }
     const error = _cf_validarPasoActual();
     if (error) { interfaz_mostrarToast(error, 'error'); return; }
-    datos_guardarProyecto(_cf);
+    const guardado = datos_guardarProyecto(_cf);
+    if (guardado === false) return; // sin permiso: datos_guardarProyecto ya mostró el aviso
     interfaz_mostrarToast(`Proyecto "${_cf.nombre}" ${_cf_modoEdicion ? 'actualizado' : 'creado'}.`, 'exito');
     router_ir('v-proyecto', { idProyecto: _cf.id });
   });

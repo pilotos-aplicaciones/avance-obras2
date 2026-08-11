@@ -147,10 +147,23 @@ function _authp_registrarIdentidadLocal() {
 function _authp_autorizar() {
   _authp_ocultarOverlay();
   _authp_pintarBarraUsuario();
+  _authp_aplicarVisibilidadAdmin();
   if (!_authp_arrancado) {
     _authp_arrancado = true;
     if (typeof _authp_onReady === 'function') _authp_onReady();
   }
+}
+
+// PILOTO — crear una obra y editar su configuración (pisos, deptos,
+// actividades, fechas) es solo para administrador. Oculta esos botones para
+// cualquier otro usuario (el bloqueo real, por si acaso, vive además en
+// datos_guardarProyecto y en los propios manejadores de clic).
+function _authp_aplicarVisibilidadAdmin() {
+  var esAdmin = authp_esAdmin();
+  ['btn-nuevo-proyecto', 'btn-nuevo-proyecto-2', 'btn-config-proyecto'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = esAdmin ? '' : 'none';
+  });
 }
 
 // ── Acciones de sesión ─────────────────────────────────────────────────────────

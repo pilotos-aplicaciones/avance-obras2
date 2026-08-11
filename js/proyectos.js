@@ -103,6 +103,16 @@ function _proy_aplicarSoloLectura(id) {
   }
   const fl = document.getElementById('btn-guardar-flotante');
   if (fl) fl.style.display = puede ? '' : 'none';
+
+  // PILOTO — solo lectura: ocultar también las acciones del menú ☰ que
+  // modifican avances (importar Excel, cargar respaldo, resetear). El bloqueo
+  // real vive en terminaciones.js (_mat_soloLectura); esto solo evita mostrar
+  // botones que igual serían rechazados. "Exportar Excel" no modifica nada,
+  // así que se deja siempre visible.
+  ['nav-btn-importar-excel', 'nav-btn-cargar', 'nav-btn-resetear'].forEach(function (btnId) {
+    const el = document.getElementById(btnId);
+    if (el) el.style.display = puede ? '' : 'none';
+  });
 }
 
 function proyectos_inicializarOrden() {

@@ -25,7 +25,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name">Control de Avances</span>
-        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.57</span></span>
+        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.59</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -65,7 +65,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name" id="cf-titulo-nav">Nuevo Proyecto</span>
-        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.57</span></span>
+        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.59</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -267,6 +267,10 @@
     configProyecto_registrarEventos();
 
     document.getElementById('btn-nuevo-proyecto-2')?.addEventListener('click', () => {
+      if (typeof authp_esAdmin === 'function' && !authp_esAdmin()) {
+        interfaz_mostrarToast('Solo un administrador puede crear obras.', 'aviso', 4000);
+        return;
+      }
       router_ir('v-config');
     });
 
