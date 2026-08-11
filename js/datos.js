@@ -91,13 +91,16 @@ function datos_eliminarProyecto(id) {
   }
 }
 
-// PILOTO — Asignación de editor de una obra (solo la usa el panel de admin).
-// Guarda el correo del responsable en la configuración de la obra y la sube.
-function datos_setEditorObra(id, email) {
+// PILOTO — Asignación de responsables de una obra (solo la usa el panel de admin).
+// Guarda la lista de correos (puede ser varios) en la configuración y la sube.
+function datos_setEditoresObra(id, emails) {
   const config = datos_cargarProyecto(id);
   if (!config) return;
-  config.editorEmail = (email || '').toLowerCase();
-  datos_guardarProyecto(config); // registra cambio real y sincroniza
+  config.editores = (emails || [])
+    .map(function (e) { return String(e || '').toLowerCase().trim(); })
+    .filter(Boolean);
+  delete config.editorEmail;          // migrar del modelo anterior (un solo editor)
+  datos_guardarProyecto(config);       // registra cambio real y sincroniza
 }
 
 // ── Estado pendiente ─────────────────────────────────────────────────────────

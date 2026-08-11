@@ -39,14 +39,24 @@ function authp_esAdmin() {
 }
 
 // ¿El usuario actual puede editar esta obra?
-// Admin: todas. Usuario: solo si es el editor asignado (config.editorEmail).
-// Obra sin editor asignado: solo admin.
+// Admin: todas. Usuario: solo si está entre los responsables de la obra
+// (config.editores, lista de correos). Obra sin responsables: solo admin.
 function authp_puedeEditar(idProyecto) {
   if (authp_esAdmin()) return true;
   if (!idProyecto || typeof datos_cargarProyecto !== 'function') return false;
   const config = datos_cargarProyecto(idProyecto);
-  if (!config || !config.editorEmail) return false;
-  return String(config.editorEmail).toLowerCase() === authp_email();
+  if (!config) return false;
+  const lista = authp_editoresDeObra(config);
+  return lista.indexOf(authp_email()) >= 0;
+}
+
+// Devuelve la lista de correos responsables de una obra (en minúsculas).
+// Compatible con el modelo anterior de un solo editor (editorEmail).
+function authp_editoresDeObra(config) {
+  if (!config) return [];
+  let lista = Array.isArray(config.editores) ? config.editores
+            : (config.editorEmail ? [config.editorEmail] : []);
+  return lista.map(function (e) { return String(e || '').toLowerCase(); }).filter(Boolean);
 }
 
 // ── Arranque / gate ────────────────────────────────────────────────────────────
@@ -207,11 +217,14 @@ function _authp_guardarSetup() {
 
 // ── Panel de administración ─────────────────────────────────────────────────────
 
+let _authp_adminTab = 'usuarios';        // pestaña activa: 'usuarios' | 'obras'
+let _authp_usuariosCache = [];           // usuarios cargados (para pintar ambas pestañas)
+
 function authp_abrirAdmin() {
   if (!authp_esAdmin()) return;
-  _authp_renderAdmin();
   const ov = document.getElementById('authp-admin-overlay');
   if (ov) ov.style.display = 'flex';
+  _authp_renderAdmin();
 }
 
 function authp_cerrarAdmin() {
@@ -219,88 +232,102 @@ function authp_cerrarAdmin() {
   if (ov) ov.style.display = 'none';
 }
 
+function _authp_verTab(tab) { _authp_adminTab = tab; _authp_renderAdmin(); }
+
+// Carga los usuarios una vez y pinta la pestaña activa (Usuarios o Editores por obra).
 function _authp_renderAdmin() {
   const cont = document.getElementById('authp-admin-body');
   if (!cont) return;
   cont.innerHTML = '<div style="padding:20px;color:#666">Cargando…</div>';
 
-  const col = firebase.firestore().collection(_AUTHP_COL_USUARIOS);
-  col.get().then(function (snap) {
-    const usuarios = snap.docs.map(function (d) { return Object.assign({ email: d.id }, d.data()); });
-    const proyectos = (typeof datos_listarProyectos === 'function') ? datos_listarProyectos() : [];
+  firebase.firestore().collection(_AUTHP_COL_USUARIOS).get().then(function (snap) {
+    _authp_usuariosCache = snap.docs.map(function (d) { return Object.assign({ email: d.id }, d.data()); });
+    _authp_usuariosCache.sort(function (a, b) { return String(a.nombre || a.email).localeCompare(String(b.nombre || b.email), 'es'); });
 
-    let html = '';
-
-    // Sección usuarios
-    html += '<h3 class="authp-h3">Usuarios</h3>';
-    html += '<div class="authp-add-row">' +
-      '<input id="authp-nuevo-email" type="email" placeholder="correo@ejemplo.com" class="authp-input">' +
-      '<select id="authp-nuevo-rol" class="authp-input" style="max-width:130px">' +
-      '<option value="usuario">Usuario</option><option value="admin">Administrador</option></select>' +
-      '<button class="authp-btn authp-btn-primary" onclick="_authp_agregarUsuario()">Agregar</button>' +
+    const tabs = '<div class="authp-tabbar">' +
+      '<button class="authp-tab ' + (_authp_adminTab === 'usuarios' ? 'activa' : '') + '" onclick="_authp_verTab(\'usuarios\')">Usuarios</button>' +
+      '<button class="authp-tab ' + (_authp_adminTab === 'obras' ? 'activa' : '') + '" onclick="_authp_verTab(\'obras\')">Editores por obra</button>' +
       '</div>';
-    html += '<div class="authp-tabla">';
-    usuarios.sort(function (a, b) { return (a.email || '').localeCompare(b.email || ''); });
-    usuarios.forEach(function (u) {
-      const activo = u.activo !== false;
-      html += '<div class="authp-fila">' +
-        '<span class="authp-fila-email">' + _authp_esc(u.email) + (u.rol === 'admin' ? ' <span class="authp-badge">admin</span>' : '') + '</span>' +
-        '<span class="authp-fila-acc">' +
-          '<button class="authp-mini" onclick="_authp_toggleActivo(\'' + _authp_esc(u.email) + '\',' + (!activo) + ')">' + (activo ? 'Desactivar' : 'Activar') + '</button>' +
-          '<button class="authp-mini" onclick="_authp_toggleRol(\'' + _authp_esc(u.email) + '\',\'' + (u.rol === 'admin' ? 'usuario' : 'admin') + '\')">' + (u.rol === 'admin' ? 'Quitar admin' : 'Hacer admin') + '</button>' +
-          '<button class="authp-mini authp-mini-peligro" onclick="_authp_quitarUsuario(\'' + _authp_esc(u.email) + '\')">Eliminar</button>' +
-        '</span>' +
-      '</div>';
-    });
-    if (usuarios.length === 0) html += '<div class="authp-vacio">Sin usuarios.</div>';
-    html += '</div>';
-
-    // Sección asignación de obras
-    html += '<h3 class="authp-h3" style="margin-top:22px">Editor por obra</h3>';
-    html += '<p class="authp-nota">Cada obra la edita su responsable. Las demás las ve en solo lectura. El admin edita todas.</p>';
-    html += '<div class="authp-tabla">';
-    if (proyectos.length === 0) html += '<div class="authp-vacio">No hay obras todavía.</div>';
-    proyectos.forEach(function (p) {
-      const config = (typeof datos_cargarProyecto === 'function') ? datos_cargarProyecto(p.id) : null;
-      const editor = (config && config.editorEmail) ? config.editorEmail : '';
-      let opciones = '<option value="">— sin asignar (solo admin) —</option>';
-      usuarios.forEach(function (u) {
-        const sel = (String(editor).toLowerCase() === String(u.email).toLowerCase()) ? ' selected' : '';
-        opciones += '<option value="' + _authp_esc(u.email) + '"' + sel + '>' + _authp_esc(u.email) + '</option>';
-      });
-      html += '<div class="authp-fila">' +
-        '<span class="authp-fila-email">' + _authp_esc((config && config.nombre) || p.nombre || p.id) + '</span>' +
-        '<span class="authp-fila-acc">' +
-          '<select class="authp-input" onchange="_authp_asignarObra(\'' + _authp_esc(p.id) + '\', this.value)">' + opciones + '</select>' +
-        '</span>' +
-      '</div>';
-    });
-    html += '</div>';
-
-    cont.innerHTML = html;
+    cont.innerHTML = tabs + '<div id="authp-admin-tab"></div>';
+    document.getElementById('authp-admin-tab').innerHTML =
+      (_authp_adminTab === 'obras') ? _authp_htmlObras() : _authp_htmlUsuarios();
   }).catch(function (err) {
     cont.innerHTML = '<div style="padding:20px;color:#b00">Error al cargar: ' + _authp_esc((err && err.message) || '') + '</div>';
   });
 }
 
+// Pestaña "Usuarios": alta con nombre + correo + rol, y lista con acciones.
+function _authp_htmlUsuarios() {
+  let html = '<div class="authp-add-row">' +
+    '<input id="authp-nuevo-nombre" type="text" placeholder="Nombre" class="authp-input">' +
+    '<input id="authp-nuevo-email" type="email" placeholder="correo@ejemplo.com" class="authp-input">' +
+    '<select id="authp-nuevo-rol" class="authp-input" style="max-width:130px"><option value="usuario">Usuario</option><option value="admin">Administrador</option></select>' +
+    '<button class="authp-btn authp-btn-primary" onclick="_authp_agregarUsuario()">Agregar</button>' +
+    '</div>';
+  html += '<div class="authp-tabla">';
+  if (_authp_usuariosCache.length === 0) html += '<div class="authp-vacio">Sin usuarios.</div>';
+  _authp_usuariosCache.forEach(function (u) {
+    const activo = u.activo !== false;
+    const nombre = u.nombre || u.email.split('@')[0];
+    html += '<div class="authp-fila">' +
+      '<span class="authp-fila-email"><strong>' + _authp_esc(nombre) + '</strong>' +
+        (u.rol === 'admin' ? ' <span class="authp-badge">admin</span>' : '') +
+        (activo ? '' : ' <span class="authp-badge" style="background:#999">inactivo</span>') +
+        '<br><span style="color:#888;font-size:12px">' + _authp_esc(u.email) + '</span></span>' +
+      '<span class="authp-fila-acc">' +
+        '<button class="authp-mini" onclick="_authp_toggleActivo(\'' + _authp_esc(u.email) + '\',' + (!activo) + ')">' + (activo ? 'Desactivar' : 'Activar') + '</button>' +
+        '<button class="authp-mini" onclick="_authp_toggleRol(\'' + _authp_esc(u.email) + '\',\'' + (u.rol === 'admin' ? 'usuario' : 'admin') + '\')">' + (u.rol === 'admin' ? 'Quitar admin' : 'Hacer admin') + '</button>' +
+        '<button class="authp-mini authp-mini-peligro" onclick="_authp_quitarUsuario(\'' + _authp_esc(u.email) + '\')">Eliminar</button>' +
+      '</span>' +
+    '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// Pestaña "Editores por obra": por cada obra, checkboxes de los usuarios (varios permitidos).
+function _authp_htmlObras() {
+  const proyectos = (typeof datos_listarProyectos === 'function') ? datos_listarProyectos() : [];
+  let html = '<p class="authp-nota">Marca quién puede editar cada obra (puedes elegir varios). Los demás la ven en solo lectura; el admin edita todas.</p>';
+  if (proyectos.length === 0) return html + '<div class="authp-vacio">No hay obras todavía.</div>';
+  if (_authp_usuariosCache.length === 0) return html + '<div class="authp-vacio">Primero agrega usuarios en la pestaña "Usuarios".</div>';
+  html += '<div class="authp-tabla">';
+  proyectos.forEach(function (p) {
+    const config = (typeof datos_cargarProyecto === 'function') ? datos_cargarProyecto(p.id) : null;
+    const actuales = authp_editoresDeObra(config);
+    let chks = '';
+    _authp_usuariosCache.forEach(function (u) {
+      const marcado = actuales.indexOf(String(u.email).toLowerCase()) >= 0 ? ' checked' : '';
+      chks += '<label class="authp-chk"><input type="checkbox" value="' + _authp_esc(u.email) + '"' + marcado +
+        ' data-obra="' + _authp_esc(p.id) + '" onchange="_authp_guardarEditores(\'' + _authp_esc(p.id) + '\')"> ' +
+        _authp_esc(u.nombre || u.email) + '</label>';
+    });
+    html += '<div class="authp-fila-obra">' +
+      '<div class="authp-obra-nombre">' + _authp_esc((config && config.nombre) || p.nombre || p.id) + '</div>' +
+      '<div class="authp-chk-lista">' + chks + '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 function _authp_agregarUsuario() {
+  const nomEl = document.getElementById('authp-nuevo-nombre');
   const emailEl = document.getElementById('authp-nuevo-email');
   const rolEl = document.getElementById('authp-nuevo-rol');
   if (!emailEl) return;
   const correos = _authp_parseEmails(emailEl.value);
   if (correos.length === 0) return;
-  const rol = (rolEl && rolEl.value === 'admin') ? 'admin' : 'usuario';
-  const col = firebase.firestore().collection(_AUTHP_COL_USUARIOS);
   const email = correos[0];
-  col.doc(email).set({
-    email: email, rol: rol, activo: true,
-    nombre: email.split('@')[0], creadoEn: new Date().toISOString()
+  const nombre = (nomEl && nomEl.value.trim()) || email.split('@')[0];
+  const rol = (rolEl && rolEl.value === 'admin') ? 'admin' : 'usuario';
+  firebase.firestore().collection(_AUTHP_COL_USUARIOS).doc(email).set({
+    email: email, rol: rol, activo: true, nombre: nombre, creadoEn: new Date().toISOString()
   }).then(_authp_renderAdmin);
 }
 
 function _authp_quitarUsuario(email) {
-  // No permitir quitarse a uno mismo (evita quedarse sin acceso).
-  if (email === authp_email()) return;
+  if (email === authp_email()) return; // no quitarse a uno mismo
   firebase.firestore().collection(_AUTHP_COL_USUARIOS).doc(email).delete().then(_authp_renderAdmin);
 }
 
@@ -314,10 +341,12 @@ function _authp_toggleRol(email, nuevoRol) {
     .update({ rol: nuevoRol }).then(_authp_renderAdmin);
 }
 
-function _authp_asignarObra(idProyecto, email) {
-  if (typeof datos_setEditorObra === 'function') {
-    datos_setEditorObra(idProyecto, email || '');
-  }
+// Recolecta los checkbox marcados de una obra y guarda su lista de responsables.
+function _authp_guardarEditores(idObra) {
+  const marcados = Array.prototype.slice.call(
+    document.querySelectorAll('input[type=checkbox][data-obra="' + idObra + '"]:checked'));
+  const emails = marcados.map(function (c) { return c.value; });
+  if (typeof datos_setEditoresObra === 'function') datos_setEditoresObra(idObra, emails);
 }
 
 // ── Utilidades ─────────────────────────────────────────────────────────────────
@@ -342,15 +371,30 @@ function _authp_setBoton(id, disabled, texto) {
   if (texto) b.textContent = texto;
 }
 
+// Dos iniciales a partir del nombre (ej. "María Paz" → "MP"). Si no hay nombre,
+// usa las dos primeras letras del correo.
+function _authp_iniciales(nombre, email) {
+  const n = String(nombre || '').trim();
+  if (n) {
+    const partes = n.split(/\s+/);
+    if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
+    return n.slice(0, 2).toUpperCase();
+  }
+  const e = String(email || '').trim();
+  return e ? e.slice(0, 2).toUpperCase() : '—';
+}
+
 // Refleja el usuario actual en las tres barras de navegación y agrega
 // las acciones "Administrar usuarios" y "Cerrar sesión".
 function _authp_pintarBarraUsuario() {
   const email = authp_email();
+  const nombre = (_authp_perfil && _authp_perfil.nombre) || '';
+  const iniciales = _authp_iniciales(nombre, email);
   ['navbar-usuario-inicio', 'navbar-usuario-config', 'navbar-usuario-proyecto'].forEach(function (id) {
     const b = document.getElementById(id);
     if (!b) return;
-    b.textContent = email ? email.split('@')[0] : '—';
-    b.title = email + (authp_esAdmin() ? ' · administrador' : '');
+    b.textContent = iniciales;   // PILOTO: solo iniciales, no el correo completo
+    b.title = (nombre ? nombre + ' · ' : '') + email + (authp_esAdmin() ? ' · administrador' : '');
     // Reemplazar el comportamiento (antes: cambiar nombre libre) por un menú simple.
     b.onclick = function (e) {
       e.stopPropagation();
@@ -467,6 +511,15 @@ function _authp_inyectarEstilos() {
     '.authp-admin-body{padding:18px 20px;overflow:auto}',
     '.authp-h3{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:#888;margin:0 0 10px}',
     '.authp-nota{font-size:13px;color:#777;margin:-4px 0 12px}',
+    '.authp-tabbar{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid #eee}',
+    '.authp-tab{border:0;background:transparent;padding:9px 14px;font-size:14px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}',
+    '.authp-tab.activa{color:#CC2929;border-bottom-color:#CC2929}',
+    '.authp-fila-obra{padding:12px;border-bottom:1px solid #f0f0f0}',
+    '.authp-fila-obra:last-child{border-bottom:0}',
+    '.authp-obra-nombre{font-weight:600;font-size:14px;margin-bottom:8px}',
+    '.authp-chk-lista{display:flex;flex-wrap:wrap;gap:8px 16px}',
+    '.authp-chk{display:flex;align-items:center;gap:6px;font-size:13px;color:#333;cursor:pointer}',
+    '.authp-chk input{width:16px;height:16px}',
     '.authp-add-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}',
     '.authp-input{flex:1;min-width:140px;padding:9px 11px;border:1px solid #d5d7db;border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box}',
     '.authp-tabla{border:1px solid #eee;border-radius:10px;overflow:hidden}',

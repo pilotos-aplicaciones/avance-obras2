@@ -78,10 +78,16 @@ function _mat_sugerirPiso() {
   return pisos[0];
 }
 
+// PILOTO — cuando es true, las celdas quedan en solo lectura (no se puede editar).
+let _mat_soloLectura = false;
+
 function terminaciones_inicializar(idProyecto) {
   _mat_id       = idProyecto;
   _mat_config   = datos_cargarProyecto(idProyecto);
   if (!_mat_config) return;
+
+  // PILOTO — solo lectura si el usuario no es responsable de esta obra.
+  _mat_soloLectura = (typeof authp_puedeEditar === 'function') ? !authp_puedeEditar(idProyecto) : false;
 
   // Si hay avances sin guardar de una sesión anterior, mostrar el estado oficial
   // por defecto y preguntar si el usuario quiere recuperar el borrador.
@@ -997,6 +1003,7 @@ function _mat_actualizarPctSidebar() {
 // ── Selector flotante ────────────────────────────────────────────────────────
 
 function _mat_mostrarSelectorFlotante(sel) {
+  if (_mat_soloLectura) return;   // PILOTO: sin permiso, no se abre el selector de avance
   let flotante = document.getElementById('mat-flotante');
   if (!flotante) {
     flotante = document.createElement('div');
@@ -1120,6 +1127,7 @@ function _mat_seleccionarRango(tdA, tdB, sel) {
 // ── Input inline (doble clic → escritura manual) ─────────────────────────────
 
 function _mat_abrirInputInline(td) {
+  if (_mat_soloLectura) return;   // PILOTO: sin permiso, no se abre el editor de celda
   const rect = td.getBoundingClientRect();
   let inp = document.getElementById('mat-input-inline');
   if (!inp) {
