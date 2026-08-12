@@ -52,13 +52,14 @@ function _datos_puedeRestaurarRespaldo(id) {
 // Usada por el asistente (crear/editar obra paso a paso): SOLO administrador.
 // Devuelve true si guardó, false si lo bloqueó por falta de permiso — los
 // llamadores DEBEN revisar este valor antes de mostrar éxito o navegar.
-function datos_guardarProyecto(config) {
+function datos_guardarProyecto(config, opciones) {
+  opciones = opciones || {};
   // PILOTO — permiso para crear/editar configuración de obra vía el asistente:
   // SOLO administrador. (Restaurar un respaldo propio es otra función —
   // datos_importarRespaldo / _mat_importarJSON — que sí permite al responsable
   // de esa obra.)
   if (typeof authp_esAdmin === 'function' && !authp_esAdmin()) {
-    if (typeof interfaz_mostrarToast === 'function') {
+    if (!opciones.silencioso && typeof interfaz_mostrarToast === 'function') {
       interfaz_mostrarToast('Solo un administrador puede crear o modificar la configuración de una obra.', 'aviso', 4500);
     }
     return false;
@@ -121,6 +122,28 @@ function datos_setEditoresObra(id, emails) {
     .filter(Boolean);
   delete config.editorEmail;          // migrar del modelo anterior (un solo editor)
   datos_guardarProyecto(config);       // registra cambio real y sincroniza
+}
+
+// PILOTO — cuando un administrador cambia el CORREO de un usuario (el correo
+// es el ID del documento en piloto_usuarios), hay que reflejar el cambio en
+// las obras donde ese correo estaba asignado como responsable
+// (config.editores); si no, esa persona se quedaría sin poder editar
+// ninguna obra tras el cambio, sin aviso.
+function datos_migrarEditorEmail(emailAnterior, emailNuevo) {
+  emailAnterior = String(emailAnterior || '').toLowerCase().trim();
+  emailNuevo    = String(emailNuevo || '').toLowerCase().trim();
+  if (!emailAnterior || !emailNuevo || emailAnterior === emailNuevo) return;
+  datos_listarProyectos().forEach(function (p) {
+    const config = datos_cargarProyecto(p.id);
+    if (!config || typeof authp_editoresDeObra !== 'function') return;
+    const lista = authp_editoresDeObra(config);
+    const pos = lista.indexOf(emailAnterior);
+    if (pos < 0) return;
+    lista[pos] = emailNuevo;
+    config.editores = lista;
+    delete config.editorEmail;
+    datos_guardarProyecto(config, { silencioso: true });
+  });
 }
 
 // ── Estado pendiente ─────────────────────────────────────────────────────────
@@ -271,16 +294,17 @@ function datos_exportarRespaldo(idProyecto) {
   }, null, 2);
 }
 
+// PILOTO — "Importar" desde el inicio carga un PROYECTO COMPLETO (configuración
+// + avances) y puede incluso crear una obra nueva con el ID del archivo: por
+// eso es solo para administrador (a diferencia de "Cargar respaldo JSON"
+// dentro de una obra, que sí permite al responsable de ESA obra — ver
+// _mat_importarJSON en terminaciones.js).
 function datos_importarRespaldo(jsonTexto) {
   const obj = JSON.parse(jsonTexto);
   if (!obj.proyecto || !obj.proyecto.id) throw new Error('Respaldo inválido');
   const id = obj.proyecto.id;
-  // PILOTO — restaurar un respaldo permite además al responsable de ESA obra
-  // (no solo al administrador): es recuperar su propio trabajo.
-  if (!_datos_puedeRestaurarRespaldo(id)) {
-    throw new Error('Solo el administrador o el responsable de esta obra puede importar este respaldo.');
-  }
-  _datos_escribirProyecto(obj.proyecto);
+  const guardado = datos_guardarProyecto(obj.proyecto, { silencioso: true });
+  if (guardado === false) throw new Error('Solo un administrador puede importar un proyecto completo.');
   datos_guardarMatrices(id, obj.matrices || {});
   datos_limpiarPendiente(id); // el respaldo cargado no tiene avances pendientes
   return id;

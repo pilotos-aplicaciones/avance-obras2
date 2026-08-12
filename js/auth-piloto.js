@@ -232,6 +232,7 @@ function _authp_guardarSetup() {
 
 let _authp_adminTab = 'usuarios';        // pestaña activa: 'usuarios' | 'obras'
 let _authp_usuariosCache = [];           // usuarios cargados (para pintar ambas pestañas)
+let _authp_editando = null;              // correo del usuario en edición (nombre/correo), o null
 
 function authp_abrirAdmin() {
   if (!authp_esAdmin()) return;
@@ -280,6 +281,18 @@ function _authp_htmlUsuarios() {
   html += '<div class="authp-tabla">';
   if (_authp_usuariosCache.length === 0) html += '<div class="authp-vacio">Sin usuarios.</div>';
   _authp_usuariosCache.forEach(function (u) {
+    // Modo edición para este usuario: nombre y correo en campos editables.
+    if (_authp_editando === u.email) {
+      html += '<div class="authp-fila authp-fila-edicion">' +
+        '<input id="authp-edit-nombre" type="text" class="authp-input" value="' + _authp_esc(u.nombre || '') + '" placeholder="Nombre">' +
+        '<input id="authp-edit-email" type="email" class="authp-input" value="' + _authp_esc(u.email) + '" placeholder="correo@ejemplo.com">' +
+        '<span class="authp-fila-acc">' +
+          '<button class="authp-mini authp-mini-primary" onclick="_authp_guardarEdicionUsuario(\'' + _authp_esc(u.email) + '\')">Guardar</button>' +
+          '<button class="authp-mini" onclick="_authp_cancelarEdicionUsuario()">Cancelar</button>' +
+        '</span>' +
+      '</div>';
+      return;
+    }
     const activo = u.activo !== false;
     const nombre = u.nombre || u.email.split('@')[0];
     html += '<div class="authp-fila">' +
@@ -288,6 +301,7 @@ function _authp_htmlUsuarios() {
         (activo ? '' : ' <span class="authp-badge" style="background:#999">inactivo</span>') +
         '<br><span style="color:#888;font-size:12px">' + _authp_esc(u.email) + '</span></span>' +
       '<span class="authp-fila-acc">' +
+        '<button class="authp-mini" onclick="_authp_editarUsuario(\'' + _authp_esc(u.email) + '\')">Editar</button>' +
         '<button class="authp-mini" onclick="_authp_toggleActivo(\'' + _authp_esc(u.email) + '\',' + (!activo) + ')">' + (activo ? 'Desactivar' : 'Activar') + '</button>' +
         '<button class="authp-mini" onclick="_authp_toggleRol(\'' + _authp_esc(u.email) + '\',\'' + (u.rol === 'admin' ? 'usuario' : 'admin') + '\')">' + (u.rol === 'admin' ? 'Quitar admin' : 'Hacer admin') + '</button>' +
         '<button class="authp-mini authp-mini-peligro" onclick="_authp_quitarUsuario(\'' + _authp_esc(u.email) + '\')">Eliminar</button>' +
@@ -342,6 +356,86 @@ function _authp_agregarUsuario() {
 function _authp_quitarUsuario(email) {
   if (email === authp_email()) return; // no quitarse a uno mismo
   firebase.firestore().collection(_AUTHP_COL_USUARIOS).doc(email).delete().then(_authp_renderAdmin);
+}
+
+// Abre el modo edición (nombre/correo) para un usuario de la lista.
+function _authp_editarUsuario(email) {
+  _authp_editando = email;
+  const tab = document.getElementById('authp-admin-tab');
+  if (tab) tab.innerHTML = _authp_htmlUsuarios();
+}
+
+function _authp_cancelarEdicionUsuario() {
+  _authp_editando = null;
+  const tab = document.getElementById('authp-admin-tab');
+  if (tab) tab.innerHTML = _authp_htmlUsuarios();
+}
+
+// Guarda el nombre y/o correo editados de un usuario.
+// Si solo cambia el nombre: una simple actualización del documento.
+// Si cambia el correo: el correo es el ID del documento en Firestore, así que
+// hay que crear un documento nuevo con los mismos datos y borrar el anterior
+// (batch), y además reflejar el cambio en las obras donde era responsable
+// (config.editores) para que no pierda silenciosamente sus permisos.
+function _authp_guardarEdicionUsuario(emailOriginal) {
+  const nomEl   = document.getElementById('authp-edit-nombre');
+  const emailEl = document.getElementById('authp-edit-email');
+  if (!emailEl) return;
+
+  const avisar = function (msg) {
+    if (typeof interfaz_mostrarToast === 'function') interfaz_mostrarToast(msg, 'error', 4500);
+    else console.warn('[COA piloto] ' + msg);
+  };
+
+  const correos = _authp_parseEmails(emailEl.value);
+  if (correos.length === 0) { avisar('Correo inválido.'); return; }
+  const nuevoEmail  = correos[0];
+  const nuevoNombre = (nomEl && nomEl.value.trim()) || nuevoEmail.split('@')[0];
+  const col = firebase.firestore().collection(_AUTHP_COL_USUARIOS);
+
+  if (nuevoEmail === emailOriginal) {
+    // Solo cambia el nombre — no toca el ID del documento.
+    col.doc(emailOriginal).update({ nombre: nuevoNombre })
+      .then(function () { _authp_editando = null; _authp_renderAdmin(); })
+      .catch(function (err) { avisar('No se pudo guardar: ' + ((err && err.message) || '')); });
+    return;
+  }
+
+  // Cambia el correo: no permitir que alguien se cambie su propio correo
+  // (riesgo real de quedar fuera sin nadie que se lo pueda revertir).
+  if (emailOriginal === authp_email()) {
+    avisar('No puedes cambiar tu propio correo — podrías perder el acceso. Pide a otro administrador que lo haga.');
+    return;
+  }
+
+  col.doc(nuevoEmail).get()
+    .then(function (existeDoc) {
+      if (existeDoc.exists) { avisar('Ya existe un usuario con ese correo.'); throw new Error('__cancelado__'); }
+      return col.doc(emailOriginal).get();
+    })
+    .then(function (docOriginal) {
+      const data  = docOriginal.data() || {};
+      const batch = firebase.firestore().batch();
+      batch.set(col.doc(nuevoEmail), {
+        email:    nuevoEmail,
+        rol:      data.rol || 'usuario',
+        activo:   data.activo !== false,
+        nombre:   nuevoNombre,
+        creadoEn: data.creadoEn || new Date().toISOString()
+      });
+      batch.delete(col.doc(emailOriginal));
+      return batch.commit();
+    })
+    .then(function () {
+      if (typeof datos_migrarEditorEmail === 'function') datos_migrarEditorEmail(emailOriginal, nuevoEmail);
+      _authp_editando = null;
+      _authp_renderAdmin();
+      if (typeof interfaz_mostrarToast === 'function') interfaz_mostrarToast('Usuario actualizado.', 'exito');
+    })
+    .catch(function (err) {
+      if (err && err.message === '__cancelado__') return;
+      avisar('No se pudo guardar: ' + ((err && err.message) || ''));
+    });
 }
 
 function _authp_toggleActivo(email, nuevoEstado) {
@@ -544,6 +638,9 @@ function _authp_inyectarEstilos() {
     '.authp-mini{border:1px solid #d5d7db;background:#fafafa;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer}',
     '.authp-mini:hover{background:#f0f0f0}',
     '.authp-mini-peligro{color:#b00020;border-color:#f0c9cf}',
+    '.authp-mini-primary{background:#CC2929;color:#fff;border-color:#CC2929}',
+    '.authp-fila-edicion{flex-wrap:wrap;gap:8px}',
+    '.authp-fila-edicion .authp-input{min-width:130px}',
     '.authp-vacio{padding:14px;color:#999;font-size:13px;text-align:center}',
     '.authp-btn-cerrar{border:0;background:transparent;font-size:22px;cursor:pointer;color:#888;line-height:1}',
     '.authp-menu{position:fixed;z-index:100000;background:#fff;border:1px solid #e3e3e3;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);overflow:hidden;min-width:190px}',

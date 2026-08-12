@@ -53,8 +53,8 @@ function proyectos_renderizarGrilla() {
       const id = btn.dataset.id;
       const config = datos_cargarProyecto(id);
       interfaz_mostrarModal(
-        'Exportar configuración',
-        `Esto exporta la configuración del proyecto "${config?.nombre || id}" (pisos, departamentos, actividades, fases).\n\nNo incluye los avances de terminaciones — esos se exportan desde dentro del proyecto con "Exportar Excel".`,
+        'Exportar respaldo',
+        `Esto exporta un respaldo completo del proyecto "${config?.nombre || id}": configuración (pisos, departamentos, actividades, fases) Y los avances de terminaciones registrados.\n\nSi solo necesitas los avances en una planilla, usa "Exportar Excel" dentro del proyecto.`,
         () => {
           const json = datos_exportarRespaldo(id);
           const blob = new Blob([json], { type: 'application/json' });
@@ -127,9 +127,16 @@ function proyectos_inicializarOrden() {
 
   // Importar respaldo
   document.getElementById('btn-importar')?.addEventListener('click', () => {
+    // PILOTO — este "Importar" carga un PROYECTO COMPLETO desde un respaldo
+    // JSON y puede incluso crear una obra nueva: por eso es solo para
+    // administrador (ver datos_importarRespaldo en datos.js).
+    if (typeof authp_esAdmin === 'function' && !authp_esAdmin()) {
+      interfaz_mostrarToast('Solo un administrador puede importar un proyecto completo.', 'aviso', 4500);
+      return;
+    }
     interfaz_mostrarModal(
-      'Importar configuración',
-      'Esto importa la configuración de un proyecto (pisos, departamentos, actividades, fases) desde un archivo JSON de respaldo.\n\nNo carga avances de terminaciones — esos se importan desde dentro del proyecto con "Importar Excel".',
+      'Importar respaldo',
+      'Esto importa un respaldo completo de proyecto (JSON): configuración (pisos, departamentos, actividades, fases) Y los avances de terminaciones que tenga el archivo.\n\nSi ya existe un proyecto con ese ID, su configuración y avances serán reemplazados.\n\nSolo un administrador puede hacer esto.',
       () => {
         const input = document.createElement('input');
         input.type = 'file';
