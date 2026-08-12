@@ -773,6 +773,11 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .cons-prog  { color: var(--texto-2); }
 .cons-real  { font-weight: 600; }
 
+/* Fila de la semana en curso (viernes real de hoy) destacada en amarillo —
+   pedido de María Paz para ubicarse rápido en la tabla. */
+.cons-fila-actual td { background: #FFF3B0; }
+.cons-fila-actual .cons-prog { color: var(--texto); }
+
 /* ── Gráficos ─────────────────────────────────────────────── */
 /* Sin título/descripción arriba. Leyenda ABAJO del gráfico, pegada (antes
    iba arriba). El ancho real del <svg> lo mide graficos.js en vivo contra
@@ -1222,41 +1227,14 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 
 /* Botón flotante guardar: visible en móvil/tablet cuando hay cambios pendientes */
 /* (la clase .visible lo activa; sin ella permanece oculto por defecto) */
-/* Barra de control original: ya fue movida al toolbar en móvil */
-.modo-movil #barra-control { display: none !important; }
+/* #barra-control (fecha/viernes de control) queda visible también en móvil
+   — antes se ocultaba acá porque se movía dentro del toolbar; ahora vive
+   siempre arriba de toda la vista de la obra (pedido de María Paz), en
+   ambas plataformas. */
 /* Quitar el padding del panel para que el toolbar quede pegado a la navbar */
 .modo-movil #panel-tab-term { padding: 0 !important; }
 /* Devolver el padding al contenido de la matriz (debajo del toolbar) */
 .modo-movil #mat-contenido  { padding: .65rem .75rem .75rem; }
-
-/* ── Fecha integrada en toolbar móvil ───────────────────── */
-.movil-fila-unica #sc-fecha-wrap {
-  margin-left: auto;
-  flex-shrink: 0;
-  position: relative; /* necesario para el dropdown absoluto */
-}
-.movil-fila-unica .sc-barra {
-  display: contents; /* disuelve el wrapper sin romper el layout */
-}
-.movil-fila-unica .sc-fecha-btn {
-  display: flex;
-  align-items: center;
-  gap: .2rem;
-  padding: .28rem .5rem;
-  border: 1.5px solid var(--borde);
-  border-radius: 20px;
-  background: var(--fondo);
-  color: var(--texto-2);
-  font-size: .75rem;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.movil-fila-unica .sc-fecha-btn:hover { background: var(--fondo-alt); }
-.movil-fila-unica .sc-cal-dropdown {
-  right: 0;
-  left: auto; /* alinear a la derecha para no salirse de pantalla */
-}
 
 /* ── Botón guardar avances pendiente ─────────────────────── */
 /* Parpadeo suave para indicar que hay cambios sin guardar */
@@ -2201,46 +2179,6 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   border-color: transparent;
 }
 .mat-sidebar.colapsado .sidebar-acciones-dropdown { display: none !important; }
-
-/* ── Fecha integrada en sidebar escritorio ───────────────── */
-.sidebar-fecha-slot {
-  min-height: 0;
-}
-#sc-fecha-wrap.sidebar-fecha {
-  padding: .3rem .55rem;
-  border-bottom: 1px solid var(--border);
-}
-.mat-sidebar #sc-fecha-wrap {
-  padding: .3rem .55rem .35rem;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.mat-sidebar .sc-fecha-btn {
-  display: flex;
-  align-items: center;
-  gap: .3rem;
-  padding: .28rem .5rem;
-  border: 1.5px solid var(--borde);
-  border-radius: 20px;
-  background: var(--fondo);
-  color: var(--texto-2);
-  font-size: .8rem;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  width: 100%;
-}
-.mat-sidebar .sc-fecha-btn:hover { background: var(--fondo-alt); }
-.mat-sidebar .sc-barra { display: contents; }
-.mat-sidebar .sc-acciones { display: none; }
-.mat-sidebar .sc-label { display: none; }
-.mat-sidebar .sc-cal-dropdown {
-  left: 52px; /* apertura hacia la derecha del sidebar */
-  right: auto;
-  top: 0;
-  z-index: 700;
-}
-.mat-sidebar.colapsado #sc-fecha-wrap { display: none; }
 
 /* ── Botones en cabecera de fase (🔍 y ⊟) ───────────────── */
 .fase-titulo-acciones {

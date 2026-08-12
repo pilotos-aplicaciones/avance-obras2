@@ -184,6 +184,17 @@ function datos_subirAhora(idProyecto) {
     return;
   }
 
+  // Requisito de María Paz: sin un viernes (semana de control) elegido no se
+  // puede confirmar el guardado — si no, el avance queda guardado pero el
+  // historial semanal ("la base de datos") se salta esa semana en silencio.
+  const semanaCtrl = datos_cargarSemanaControl(idProyecto);
+  if (!semanaCtrl || !semanaCtrl.semana) {
+    if (typeof interfaz_mostrarToast === 'function') {
+      interfaz_mostrarToast('Selecciona un viernes (semana de control) antes de guardar.', 'aviso', 5000);
+    }
+    return;
+  }
+
   // Guardar snapshot del estado oficial antes de subir
   datos_guardarMatricesOk(idProyecto);
   datos_limpiarPendiente(idProyecto);

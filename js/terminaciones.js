@@ -174,35 +174,20 @@ function _mat_render() {
   panel.scrollLeft = 0;
   panel.scrollTop  = 0;
 
+  // La fecha (viernes de control, #barra-control) ya no se mueve a ningún
+  // lado — queda fija arriba de toda la vista de la obra (Gráficos,
+  // Terminaciones, Consolidado), visible siempre sin importar la pestaña
+  // activa, porque esa fecha "manda" el reporte completo, no solo Registro
+  // avance (pedido de María Paz). La renderiza y mantiene router.js
+  // (semanaCtrl_renderBarra), una sola vez al entrar a la obra.
   if (interfaz_esMovil()) {
     // En móvil no se usa el submenú de la barra lateral (hay su propia
     // barra de herramientas dentro del panel) — asegurar que quede vacío.
     const navSlotMovil = document.getElementById('proy-nav-reg-submenu');
     if (navSlotMovil) { navSlotMovil.style.display = 'none'; navSlotMovil.innerHTML = ''; }
 
-    // Rescatar sc-fecha-wrap antes de destruir el DOM para no perder sus listeners
-    const fechaWrap = document.getElementById('sc-fecha-wrap');
-    if (fechaWrap) fechaWrap.remove();
-
     panel.innerHTML = _mat_toolbarMovilHTML() + '<div id="mat-contenido" class="mat-contenido"></div>';
-
-    // Insertar fecha ANTES del botón guardar (orden: 📅 → ✓ → •••)
-    const filaUnica = panel.querySelector('.movil-fila-unica');
-    if (filaUnica && fechaWrap) {
-      const guardarBtn = filaUnica.querySelector('#mat-btn-guardar-avances');
-      if (guardarBtn) filaUnica.insertBefore(fechaWrap, guardarBtn);
-      else filaUnica.appendChild(fechaWrap);
-    }
-    // Ocultar la barra de control original (ya integrada en el toolbar)
-    const barraCtrl = document.getElementById('barra-control');
-    if (barraCtrl) barraCtrl.style.display = 'none';
   } else {
-    // Rescatar sc-fecha-wrap antes de destruir el DOM (puede venir de un
-    // render anterior, esté donde esté — dentro del panel o ya en la barra
-    // lateral principal, da igual).
-    const fechaWrapD = document.getElementById('sc-fecha-wrap');
-    if (fechaWrapD) fechaWrapD.remove();
-
     // El menú (Resumen/piso/F1-F6/Todas/Revisión/Guardar) ya NO vive dentro
     // de esta pestaña: se absorbió en la barra lateral principal (.proy-nav),
     // visible solo mientras "Registro avance" está seleccionada — pedido de
@@ -222,15 +207,6 @@ function _mat_render() {
     <div class="mat-area-contenido" id="mat-area-contenido">
       <div id="mat-contenido" class="mat-contenido"></div>
     </div>`;
-
-    // Inyectar fecha en el slot reservado dentro de la sidebar (ahora en la
-    // barra lateral principal, no dentro del panel de la pestaña).
-    const slotFecha = document.getElementById('sidebar-fecha-slot');
-    if (slotFecha && fechaWrapD) slotFecha.replaceWith(fechaWrapD);
-
-    // Ocultar la franja de barra-control (la fecha ya está en la sidebar)
-    const barraCtrlD = document.getElementById('barra-control');
-    if (barraCtrlD) barraCtrlD.style.display = 'none';
   }
 
   _mat_renderContenido();
@@ -264,10 +240,6 @@ function _mat_sidebarEscritorioHTML() {
     : (_mat_pisoFiltro < 0 ? 'Sub ' + Math.abs(_mat_pisoFiltro) : 'Piso ' + _mat_pisoFiltro);
 
   return `
-    <div id="sidebar-fecha-slot" class="sidebar-fecha-slot"></div>
-
-    <div class="sidebar-sep"></div>
-
     <nav class="sidebar-nav">
       <button class="sidebar-tab${_mat_tabActiva === 'resumen' ? ' activo' : ''}" data-tab="resumen">
         <span class="sidebar-icono">📊</span><span class="sidebar-texto">Resumen</span>
@@ -324,7 +296,10 @@ function _mat_toolbarMovilHTML() {
     ? '<div class="movil-completado-msg">✓ Todos los pisos se encuentran completados</div>'
     : '';
 
-  // Layout: [Piso▼] [F1..Fn 🔍 [✕]] · · · [📅 fecha] [✓] [•••]
+  // Layout: [Piso▼] [F1..Fn 🔍 [✕]] · · · [✓] [•••]
+  // La fecha (viernes de control) ya no vive acá — quedó fija arriba de toda
+  // la vista (#barra-control), visible siempre sin importar la pestaña,
+  // porque afecta Gráficos y Consolidado también, no solo esta pestaña.
   return `
   <div class="mat-toolbar mat-toolbar-movil">
     <div class="movil-fila-unica">
@@ -334,7 +309,6 @@ function _mat_toolbarMovilHTML() {
         <button class="movil-btn-icono movil-btn-icono-filtro${filtroActActivo ? ' filtro-activo' : ''}" id="mat-btn-filtro-act" title="Filtrar actividades">🔍</button>
         ${filtroActActivo ? '<button class="movil-btn-icono movil-btn-limpiar-act" id="mat-btn-limpiar-filtro-act" title="Quitar filtro actividades">✕</button>' : ''}
       </div>
-      <!-- sc-fecha-wrap se inyecta ANTES de ✓ por _mat_render() -->
       ${_mat_soloLectura ? '' : `<button class="movil-btn-guardar${hayPendiente ? ' mat-btn-pendiente' : ''}" id="mat-btn-guardar-avances" title="Guardar avances">✓</button>
       <div class="mat-menu-wrap">
         <button class="movil-btn-icono" id="mat-btn-mas" title="Más opciones">•••</button>
