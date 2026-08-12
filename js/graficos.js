@@ -44,8 +44,23 @@ function _graf_render(panel, config, historial) {
   const padY = (maxY - minY) * 0.08 || 1;
   minY -= padY; maxY += padY;
 
-  const W = 900, H = 380, padL = 40, padR = 16, padT = 16, padB = 30;
+  // Ancho: una "columna" fija por semana (viernes), para que se vean TODAS las
+  // etiquetas del eje X sin amontonarlas — con muchas semanas el gráfico se
+  // hace más ancho que la pantalla y se scrollea horizontal (misma idea que
+  // la tabla de Consolidado, ver .graf-svg-wrap / .cons-tabla-wrap en el CSS).
+  const padL = 40, padR = 16, padT = 16, padB = 30;
   const n = filas.length;
+  const PX_POR_SEMANA = 46;
+  const W = Math.max(900, padL + padR + Math.max(0, n - 1) * PX_POR_SEMANA + PX_POR_SEMANA);
+
+  // Alto: una línea de grilla por piso (eje Y = piso), con separación mínima
+  // legible aunque el edificio tenga muchos pisos.
+  const primerPiso = Math.ceil(minY), ultimoPiso = Math.floor(maxY);
+  const ticksY = [];
+  for (let p = primerPiso; p <= ultimoPiso; p++) ticksY.push(p);
+  const PX_POR_PISO = 20;
+  const H = Math.max(380, padT + padB + Math.max(1, ticksY.length - 1) * PX_POR_PISO);
+
   const xAt = function(i) { return n <= 1 ? padL : padL + (i / (n - 1)) * (W - padL - padR); };
   const yAt = function(v) { return padT + (1 - (v - minY) / (maxY - minY)) * (H - padT - padB); };
 
@@ -68,12 +83,19 @@ function _graf_render(panel, config, historial) {
     if (realPts) svgLineas += `<polyline points="${realPts}" fill="none" stroke="${c.enc}" stroke-width="2.5"/>`;
   });
 
-  // Etiquetas del eje X: no todas, para no amontonarlas.
-  const paso = Math.max(1, Math.ceil(n / 8));
+  // Etiquetas del eje X: TODAS las semanas (siempre viernes) — el ancho del
+  // svg ya se calculó arriba para que quepan sin amontonarse.
   let etiquetasX = '';
   filas.forEach(function(fila, i) {
-    if (i % paso !== 0 && i !== n - 1) return;
     etiquetasX += `<text x="${xAt(i).toFixed(1)}" y="${H - 8}" font-size="9" fill="#A09A93" text-anchor="middle">${logica_formatearFecha(fila.semana).slice(0, 5)}</text>`;
+  });
+
+  // Grilla del eje Y: una línea + etiqueta por piso.
+  let grillaY = '';
+  ticksY.forEach(function(p) {
+    const y = yAt(p);
+    grillaY += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="#EFEBE4" stroke-width="1"/>`;
+    grillaY += `<text x="4" y="${(y + 3).toFixed(1)}" font-size="9" fill="#A09A93">${p}p</text>`;
   });
 
   const leyendaFases = fases.map(function(f) {
@@ -92,12 +114,13 @@ function _graf_render(panel, config, historial) {
       <span class="graf-leyenda-item"><i class="graf-linea-muestra"></i>Real</span>
       <span class="graf-leyenda-item"><i class="graf-linea-muestra graf-punteada"></i>Programado</span>
     </div>
-    <svg viewBox="0 0 ${W} ${H}" class="graf-svg" preserveAspectRatio="xMidYMid meet">
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#E2DDD4"/>
-      <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#E2DDD4"/>
-      <text x="4" y="${padT + 8}" font-size="9" fill="#A09A93">${maxY.toFixed(0)}p</text>
-      <text x="4" y="${H - padB}" font-size="9" fill="#A09A93">${minY.toFixed(0)}p</text>
-      ${svgLineas}
-      ${etiquetasX}
-    </svg>`;
+    <div class="graf-svg-wrap">
+      <svg width="${W}" height="${H}" class="graf-svg" style="width:${W}px;max-width:none;">
+        ${grillaY}
+        <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#E2DDD4"/>
+        <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#E2DDD4"/>
+        ${svgLineas}
+        ${etiquetasX}
+      </svg>
+    </div>`;
 }

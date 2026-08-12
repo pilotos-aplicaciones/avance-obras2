@@ -176,6 +176,11 @@ function _mat_render() {
   panel.scrollTop  = 0;
 
   if (interfaz_esMovil()) {
+    // En móvil no se usa el submenú de la barra lateral (hay su propia
+    // barra de herramientas dentro del panel) — asegurar que quede vacío.
+    const navSlotMovil = document.getElementById('proy-nav-reg-submenu');
+    if (navSlotMovil) { navSlotMovil.style.display = 'none'; navSlotMovil.innerHTML = ''; }
+
     // Rescatar sc-fecha-wrap antes de destruir el DOM para no perder sus listeners
     const fechaWrap = document.getElementById('sc-fecha-wrap');
     if (fechaWrap) fechaWrap.remove();
@@ -193,19 +198,34 @@ function _mat_render() {
     const barraCtrl = document.getElementById('barra-control');
     if (barraCtrl) barraCtrl.style.display = 'none';
   } else {
-    // Rescatar sc-fecha-wrap antes de destruir el DOM del panel
+    // Rescatar sc-fecha-wrap antes de destruir el DOM (puede venir de un
+    // render anterior, esté donde esté — dentro del panel o ya en la barra
+    // lateral principal, da igual).
     const fechaWrapD = document.getElementById('sc-fecha-wrap');
     if (fechaWrapD) fechaWrapD.remove();
 
+    // El menú (Resumen/piso/F1-F6/Todas/Revisión/Guardar) ya NO vive dentro
+    // de esta pestaña: se absorbió en la barra lateral principal (.proy-nav),
+    // visible solo mientras "Registro avance" está seleccionada — pedido de
+    // María Paz para que no se mezcle con el contenido de otras secciones
+    // (Gráficos, Consolidado, etc.). El panel de la pestaña queda solo con
+    // la tabla.
+    const navSlot = document.getElementById('proy-nav-reg-submenu');
+    if (navSlot) {
+      navSlot.innerHTML = `
+      <div class="mat-sidebar${_mat_sidebarColapsado ? ' colapsado' : ''}" id="mat-sidebar">
+        ${_mat_sidebarEscritorioHTML()}
+      </div>`;
+      navSlot.style.display = 'block';
+    }
+
     panel.innerHTML = `
-    <div class="mat-sidebar${_mat_sidebarColapsado ? ' colapsado' : ''}" id="mat-sidebar">
-      ${_mat_sidebarEscritorioHTML()}
-    </div>
     <div class="mat-area-contenido" id="mat-area-contenido">
       <div id="mat-contenido" class="mat-contenido"></div>
     </div>`;
 
-    // Inyectar fecha en el slot reservado dentro de la sidebar
+    // Inyectar fecha en el slot reservado dentro de la sidebar (ahora en la
+    // barra lateral principal, no dentro del panel de la pestaña).
     const slotFecha = document.getElementById('sidebar-fecha-slot');
     if (slotFecha && fechaWrapD) slotFecha.replaceWith(fechaWrapD);
 

@@ -82,9 +82,22 @@ function router_mostrarTab(tab) {
     if (btn)   btn.classList.remove('activo');
   });
 
+  // Submenú de "Registro avance" absorbido en la barra lateral: se oculta y
+  // vacía por defecto en cada cambio de pestaña. Si la pestaña destino es
+  // tab-term, terminaciones_inicializar() (más abajo) lo vuelve a mostrar y
+  // llenar — pero solo en escritorio (en móvil no aplica).
+  const regSubmenu = document.getElementById('proy-nav-reg-submenu');
+  if (regSubmenu) { regSubmenu.style.display = 'none'; regSubmenu.innerHTML = ''; }
+
   const panel = document.getElementById('panel-' + tab);
   const btn   = document.querySelector(`[data-tab="${tab}"]`);
-  if (panel) panel.style.display = 'block';
+  // Vacío (no 'block'): deja que el CSS decida el display de cada panel — clave
+  // para #panel-tab-term, que en escritorio necesita flex (fila) vía una regla
+  // '!important' que de otro modo pisaría un 'block' puesto aquí y quedaría
+  // visible incluso al "ocultarlo" (bug reportado: menú+tabla de Terminaciones
+  // se veían detrás de Gráficos). El 'none' al ocultar sí gana siempre porque
+  // no tiene ninguna regla '!important' en contra.
+  if (panel) panel.style.display = '';
   if (btn)   btn.classList.add('activo');
   _tabActiva = tab;
 

@@ -639,6 +639,27 @@ function _cf_registrarEventosPaso() {
       if (file) _cf_importarProgramacion(file);
       e.target.value = '';
     });
+
+    // Arrastrar y soltar el Excel (solo existe en el estado "sin programación
+    // cargada" — cf-prog-upload; el estado "ya cargada" no tiene esta caja).
+    const zonaDrop = document.getElementById('cf-prog-upload');
+    if (zonaDrop) {
+      ['dragover', 'dragenter'].forEach((evt) => {
+        zonaDrop.addEventListener(evt, (e) => {
+          e.preventDefault(); // obligatorio para que el navegador permita el 'drop'
+          zonaDrop.classList.add('cf-prog-upload-arrastrando');
+        });
+      });
+      zonaDrop.addEventListener('dragleave', () => {
+        zonaDrop.classList.remove('cf-prog-upload-arrastrando');
+      });
+      zonaDrop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zonaDrop.classList.remove('cf-prog-upload-arrastrando');
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) _cf_importarProgramacion(file);
+      });
+    }
   }
 }
 

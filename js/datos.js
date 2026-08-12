@@ -641,7 +641,12 @@ function _fs_notificarCambioExterno(idsActualizados) {
   if (vista === 'v-inicio') {
     if (typeof proyectos_renderizarGrilla === 'function') proyectos_renderizarGrilla();
   } else if (vista === 'v-proyecto' && proyectoActivo) {
-    if (typeof terminaciones_inicializar === 'function') terminaciones_inicializar(proyectoActivo);
+    // Re-renderizar la pestaña que el usuario tiene abierta AHORA, no siempre
+    // Terminaciones — con varias pestañas (Gráficos, Consolidado, etc.) desde
+    // v4.61, refrescar la de Terminaciones aunque esté en otra sección era
+    // trabajo de más (antes no importaba porque Terminaciones era la única).
+    const tabActiva = (typeof router_getTabActiva === 'function' && router_getTabActiva()) || 'tab-term';
+    if (typeof router_mostrarTab === 'function') router_mostrarTab(tabActiva);
   }
 }
 

@@ -730,10 +730,12 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .graf-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .graf-linea-muestra { width: 18px; height: 0; border-top: 2.5px solid var(--texto-2); display: inline-block; }
 .graf-linea-muestra.graf-punteada { border-top-style: dashed; }
-.graf-svg { width: 100%; height: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radio-sm); }
+.graf-svg-wrap { overflow-x: auto; }
+.graf-svg { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radio-sm); }
 
 /* ── Programación (Paso 4 del asistente) ─────────────────────────────────── */
-.cf-prog-upload { border: 2px dashed var(--borde); border-radius: var(--radio-sm); padding: 2.25rem 1.5rem; text-align: center; color: var(--texto-2); }
+.cf-prog-upload { border: 2px dashed var(--borde); border-radius: var(--radio-sm); padding: 2.25rem 1.5rem; text-align: center; color: var(--texto-2); transition: background .15s, border-color .15s; }
+.cf-prog-upload-arrastrando { background: var(--acento-suave); border-color: var(--acento); }
 .cf-prog-icono { font-size: 1.9rem; margin-bottom: .5rem; }
 .cf-prog-resumen { border: 1.5px solid var(--borde); border-radius: var(--radio-sm); padding: 1.25rem; }
 .cf-prog-ok { color: var(--exito); font-weight: 700; font-size: .9rem; margin-bottom: .3rem; }
@@ -1789,9 +1791,13 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
    SIDEBAR ESCRITORIO — barra lateral izquierda de terminaciones
    ══════════════════════════════════════════════════════════════ */
 
-/* El panel de terminaciones pasa a ser flex row en escritorio */
+/* El panel de terminaciones pasa a ser flex row en escritorio.
+   'display' SIN !important a propósito: cuando el router lo oculta (otra
+   pestaña activa) pone display:none inline, y ese inline debe poder ganarle
+   a esta regla — si no, el panel queda visible detrás de las otras pestañas
+   (bug reportado: menú+tabla de Terminaciones se veían tras Gráficos). */
 .modo-escritorio #panel-tab-term {
-  display: flex !important;
+  display: flex;
   flex-direction: row !important;
   overflow: hidden !important;
   padding: 0 !important;
@@ -1816,6 +1822,29 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   width: 36px;
   min-width: 36px;
   padding: 0 .2rem .6rem;
+}
+
+/* ── Absorbido en la barra lateral principal (.proy-nav) ─────────────────
+   .mat-sidebar ya no está al lado de la tabla (esa distinción de ancho fijo
+   220px + borde ya no aplica) — ahora vive DENTRO de la columna angosta de
+   .proy-nav, indentado bajo "Registro avance". Mismo contenido y mismos
+   estilos de fila (.sidebar-tab, .sidebar-pct, etc.), solo se ajusta el
+   contenedor para que encaje en ese espacio. */
+.proy-nav-reg-submenu {
+  margin: .2rem 0 .3rem .45rem;
+  padding-left: .5rem;
+  border-left: 2px solid var(--borde);
+}
+.proy-nav-reg-submenu .mat-sidebar {
+  width: 100%;
+  min-width: 0;
+  border-right: none;
+  border-radius: 0 8px 8px 0;
+  max-height: 60vh;
+}
+.proy-nav-reg-submenu .mat-sidebar.colapsado {
+  width: 36px;
+  min-width: 36px;
 }
 
 /* Área de contenido (a la derecha del sidebar) */
