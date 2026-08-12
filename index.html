@@ -25,7 +25,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name">Control de Avances</span>
-        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.63</span></span>
+        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.64</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -65,7 +65,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name" id="cf-titulo-nav">Nuevo Proyecto</span>
-        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.63</span></span>
+        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.64</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -128,6 +128,7 @@
         <button class="nav-dropdown-item" id="nav-btn-importar-excel">📥 Importar Excel</button>
         <button class="nav-dropdown-item" id="nav-btn-excel">📊 Exportar Excel</button>
         <button class="nav-dropdown-item" id="nav-btn-cargar">📂 Cargar respaldo JSON</button>
+        <button class="nav-dropdown-item" id="nav-btn-exportar-historial">📈 Exportar historial semanal</button>
         <button class="nav-dropdown-item peligro" id="nav-btn-resetear">↺ Resetear avances</button>
       </div>
     </div>
@@ -138,22 +139,26 @@
 
   <div class="proyecto-body">
 
-    <!-- Menú lateral: Gráficos / Obra Gruesa / Terminaciones / Informe fotográfico -->
+    <!-- Menú lateral: Gráficos / Obra Gruesa / Terminaciones / Informe fotográfico.
+         Un solo botón colapsa/expande TODA la barra (franja de íconos) — no
+         hay otro control de colapsar adentro (pedido de María Paz). -->
     <nav class="proy-nav" id="proy-nav">
-      <button class="proy-nav-top" data-tab="tab-graficos">📊 Gráficos</button>
+      <button class="proy-nav-toggle" id="proy-nav-toggle" title="Colapsar barra lateral">◀</button>
+
+      <button class="proy-nav-top" data-tab="tab-graficos"><span class="proy-nav-icono">📊</span><span class="proy-nav-texto">Gráficos</span></button>
 
       <div class="proy-nav-grupo" data-grupo="og">
-        <button class="proy-nav-grupo-header">🏗 Obra Gruesa <span class="proy-nav-flecha">▶</span></button>
+        <button class="proy-nav-grupo-header"><span class="proy-nav-icono">🏗</span><span class="proy-nav-texto">Obra Gruesa</span> <span class="proy-nav-flecha">▶</span></button>
         <div class="proy-nav-subitems">
           <button class="proy-nav-sub" data-tab="tab-consolidado-og" disabled>Consolidado <span class="proy-nav-prox">Próximamente</span></button>
         </div>
       </div>
 
       <div class="proy-nav-grupo abierto" data-grupo="term">
-        <button class="proy-nav-grupo-header">🎨 Terminaciones <span class="proy-nav-flecha">▶</span></button>
+        <button class="proy-nav-grupo-header"><span class="proy-nav-icono">🎨</span><span class="proy-nav-texto">Terminaciones</span> <span class="proy-nav-flecha">▶</span></button>
         <div class="proy-nav-subitems">
           <button class="proy-nav-sub" data-tab="tab-term">Registro avance</button>
-          <!-- Submenú de Registro avance (Resumen/piso/F1-F6/Todas/Revisión/Guardar),
+          <!-- Submenú de Registro avance (Resumen/piso/F1-F6/Todas/Revisión),
                lo llena terminaciones.js SOLO mientras esta fila esté activa y en
                escritorio (en móvil usa su propia barra de herramientas, no esto). -->
           <div class="proy-nav-reg-submenu" id="proy-nav-reg-submenu" style="display:none"></div>
@@ -161,7 +166,7 @@
         </div>
       </div>
 
-      <button class="proy-nav-top" data-tab="tab-fotografico" disabled>📷 Informe fotográfico <span class="proy-nav-prox">Próximamente</span></button>
+      <button class="proy-nav-top" data-tab="tab-fotografico" disabled><span class="proy-nav-icono">📷</span><span class="proy-nav-texto">Informe fotográfico</span> <span class="proy-nav-prox">Próximamente</span></button>
     </nav>
 
     <div class="proy-contenido">
@@ -348,6 +353,11 @@
     document.getElementById('nav-btn-cargar')?.addEventListener('click', () => {
       navDropdown?.classList.remove('abierto');
       document.getElementById('mat-input-cargar')?.click();
+    });
+    document.getElementById('nav-btn-exportar-historial')?.addEventListener('click', () => {
+      navDropdown?.classList.remove('abierto');
+      const id = typeof router_getProyectoActivo === 'function' ? router_getProyectoActivo() : null;
+      if (id && typeof consolidado_exportarHistorialExcel === 'function') consolidado_exportarHistorialExcel(id);
     });
     document.getElementById('nav-btn-resetear')?.addEventListener('click', () => {
       navDropdown?.classList.remove('abierto');

@@ -297,6 +297,20 @@ function _interfaz_registrarNavegacionGlobal() {
       if (!yaAbierto) grupo.classList.add('abierto');
     });
   });
+
+  // Colapsar/expandir TODA la barra lateral con un solo botón (franja de
+  // íconos) — no hay otro control de colapsar adentro (ni por sección, ni
+  // el que tenía el submenú de Registro avance, que se quitó).
+  const btnProyNavToggle = document.getElementById('proy-nav-toggle');
+  if (btnProyNavToggle) {
+    btnProyNavToggle.addEventListener('click', () => {
+      const nav = document.getElementById('proy-nav');
+      if (!nav) return;
+      const colapsado = nav.classList.toggle('colapsado');
+      btnProyNavToggle.textContent = colapsado ? '▶' : '◀';
+      btnProyNavToggle.title       = colapsado ? 'Expandir barra lateral' : 'Colapsar barra lateral';
+    });
+  }
 }
 
 // ── Formateo de números ──────────────────────────────────────────────────────

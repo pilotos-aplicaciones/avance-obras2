@@ -10,7 +10,6 @@ let _mat_pisoFiltro   = 'todos';
 let _mat_colsOcultas      = false;   // true = columnas resumen ocultas
 let _mat_actividadesFiltro = {};     // objeto {faseKey: Set|null} — filtro independiente por fase
 let _mat_abreviado        = false;   // true = nombres abreviados en columna Actividad
-let _mat_sidebarColapsado = false;   // true = sidebar de escritorio colapsado (solo iconos)
 
 let _sel                 = new Set();
 let _ancla               = null;
@@ -213,7 +212,7 @@ function _mat_render() {
     const navSlot = document.getElementById('proy-nav-reg-submenu');
     if (navSlot) {
       navSlot.innerHTML = `
-      <div class="mat-sidebar${_mat_sidebarColapsado ? ' colapsado' : ''}" id="mat-sidebar">
+      <div class="mat-sidebar" id="mat-sidebar">
         ${_mat_sidebarEscritorioHTML()}
       </div>`;
       navSlot.style.display = 'block';
@@ -239,9 +238,11 @@ function _mat_render() {
 }
 
 // ── Sidebar escritorio ───────────────────────────────────────────────────────
+// Sin botón de colapsar propio ni "Guardar avances" docked — el colapso ahora
+// lo controla un único botón para toda la barra lateral (.proy-nav, ver
+// interfaz.js), y el guardado quedó solo en el ícono flotante (pedido de
+// María Paz: no debe haber dos formas de colapsar ni dos botones de guardar).
 function _mat_sidebarEscritorioHTML() {
-  const hayPendiente = datos_hayPendiente(_mat_id);
-
   // % avance por fase, calculado sobre proyecto completo (sin filtro de piso)
   const deptosTodos = logica_listaDeptosPlana(_mat_config.departamentos || []);
   const deptosEstr  = _mat_config.departamentos || [];
@@ -263,15 +264,7 @@ function _mat_sidebarEscritorioHTML() {
     : (_mat_pisoFiltro < 0 ? 'Sub ' + Math.abs(_mat_pisoFiltro) : 'Piso ' + _mat_pisoFiltro);
 
   return `
-    <div class="sidebar-top-bar">
-      <button class="sidebar-toggle" id="sidebar-toggle" title="${_mat_sidebarColapsado ? 'Expandir' : 'Colapsar'}">${_mat_sidebarColapsado ? '▶' : '◀'}</button>
-    </div>
-
     <div id="sidebar-fecha-slot" class="sidebar-fecha-slot"></div>
-
-    ${_mat_soloLectura ? '' : `<button class="sidebar-guardar${hayPendiente ? ' mat-btn-pendiente' : ''}" id="mat-btn-guardar-avances">
-      <span class="sidebar-icono">✓</span><span class="sidebar-texto"> Guardar avances</span>
-    </button>`}
 
     <div class="sidebar-sep"></div>
 
@@ -1266,18 +1259,6 @@ function _mat_registrarEventos() {
       _mat_actualizarToolbar();
     });
   });
-
-  // ── Toggle sidebar colapsado ─────────────────────────────────────────────────
-  const btnSidebarToggle = document.getElementById('sidebar-toggle');
-  if (btnSidebarToggle) {
-    btnSidebarToggle.addEventListener('click', () => {
-      _mat_sidebarColapsado = !_mat_sidebarColapsado;
-      const sidebar = document.getElementById('mat-sidebar');
-      if (sidebar) sidebar.classList.toggle('colapsado', _mat_sidebarColapsado);
-      btnSidebarToggle.textContent = _mat_sidebarColapsado ? '▶' : '◀';
-      btnSidebarToggle.title       = _mat_sidebarColapsado ? 'Expandir' : 'Colapsar';
-    });
-  }
 
   document.getElementById('mat-btn-filtro-piso')?.addEventListener('click', e => {
     e.stopPropagation();

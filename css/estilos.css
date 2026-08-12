@@ -673,12 +673,25 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 
 .proyecto-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: row; background: var(--fondo-card); }
 
-/* Menú lateral de la vista proyecto: Gráficos / Obra Gruesa / Terminaciones / Informe fotográfico */
+/* Menú lateral de la vista proyecto: Gráficos / Obra Gruesa / Terminaciones / Informe fotográfico.
+   Un solo botón (.proy-nav-toggle) colapsa TODA la barra a una franja de
+   íconos — no hay otro control de colapsar dentro de ella. */
 .proy-nav {
   width: 220px; flex-shrink: 0; overflow-y: auto;
   background: var(--fondo-alt); border-right: 1.5px solid var(--borde);
   padding: .75rem; display: flex; flex-direction: column; gap: .2rem;
+  transition: width .18s ease;
 }
+.proy-nav.colapsado { width: 54px; padding: .75rem .4rem; }
+
+.proy-nav-toggle {
+  align-self: flex-end; width: 24px; height: 22px; flex-shrink: 0;
+  border-radius: 5px; background: var(--surface2); border: 1px solid var(--borde);
+  font-size: .68rem; color: var(--texto-2); cursor: pointer; margin-bottom: .35rem;
+}
+.proy-nav-toggle:hover { background: var(--borde); }
+.proy-nav.colapsado .proy-nav-toggle { align-self: center; }
+
 .proy-nav-top, .proy-nav-grupo-header, .proy-nav-sub {
   display: flex; align-items: center; justify-content: space-between; gap: .4rem;
   width: 100%; text-align: left; font-family: inherit;
@@ -689,6 +702,7 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .proy-nav-top:hover:not(:disabled), .proy-nav-grupo-header:hover { background: var(--borde); }
 .proy-nav-top:disabled { color: var(--texto-3); cursor: default; }
 .proy-nav-top.activo { background: var(--acento); color: #fff; }
+.proy-nav-icono { flex-shrink: 0; }
 
 .proy-nav-flecha { font-size: .62rem; color: var(--texto-3); transition: transform .15s; }
 .proy-nav-grupo.abierto .proy-nav-flecha { transform: rotate(90deg); }
@@ -708,15 +722,50 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   padding: .05rem .35rem; border-radius: 8px; text-transform: uppercase; letter-spacing: .02em;
 }
 
+/* Colapsada: franja de íconos — se oculta el texto, la flecha, "Próximamente"
+   y CUALQUIER submenú abierto (incluido el de Registro avance). */
+.proy-nav.colapsado .proy-nav-texto,
+.proy-nav.colapsado .proy-nav-flecha,
+.proy-nav.colapsado .proy-nav-prox,
+.proy-nav.colapsado .proy-nav-subitems { display: none; }
+.proy-nav.colapsado .proy-nav-top,
+.proy-nav.colapsado .proy-nav-grupo-header { justify-content: center; padding: .55rem; }
+
 .proy-nav-placeholder { padding: 3rem 1rem; text-align: center; color: var(--texto-2); font-size: .9rem; line-height: 1.7; }
 
-.proy-contenido { flex: 1; min-height: 0; overflow-y: auto; overflow-x: auto; }
-.panel-tab { padding: 1.25rem; background: var(--fondo-card); }
+/* .proy-contenido ya NO tiene su propio scroll — es solo un contenedor de
+   alto acotado que le pasa una altura definida a la pestaña activa. Cada
+   pestaña (.panel-tab) scrollea lo suyo con su propio contenedor interno
+   (.mat-area-contenido / .cons-tabla-wrap / .graf-svg-wrap). Antes
+   .proy-contenido tenía overflow-y/x:auto — eso hacía que ÉL fuera el que
+   realmente scrolleaba en vez de la tabla, rompiendo el encabezado "fijo"
+   (position:sticky se ata al ancestro con overflow más cercano, que era
+   .mat-area-contenido, pero ese nunca llegaba a scrollear porque el que
+   realmente se movía era este de más arriba). */
+.proy-contenido { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.panel-tab {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+  padding: 1.25rem; background: var(--fondo-card);
+}
+
+/* Barras de scroll siempre visibles (no solo al pasar el mouse) en los
+   contenedores que realmente scrollean — barra lateral, tabla de avances,
+   Consolidado y Gráficos. Firefox: scrollbar-width:thin ya es visible por
+   defecto, no se auto-oculta. */
+.proy-nav, .mat-area-contenido, .cons-tabla-wrap, .graf-contenedor { scrollbar-width: thin; }
+.proy-nav::-webkit-scrollbar, .mat-area-contenido::-webkit-scrollbar,
+.cons-tabla-wrap::-webkit-scrollbar, .graf-contenedor::-webkit-scrollbar { width: 10px; height: 10px; }
+.proy-nav::-webkit-scrollbar-track, .mat-area-contenido::-webkit-scrollbar-track,
+.cons-tabla-wrap::-webkit-scrollbar-track, .graf-contenedor::-webkit-scrollbar-track { background: var(--surface2); }
+.proy-nav::-webkit-scrollbar-thumb, .mat-area-contenido::-webkit-scrollbar-thumb,
+.cons-tabla-wrap::-webkit-scrollbar-thumb, .graf-contenedor::-webkit-scrollbar-thumb { background: var(--borde); border-radius: 6px; }
 
 /* ── Consolidado (Terminaciones / Obra Gruesa) ───────────────────────────── */
-.cons-header { margin-bottom: 1rem; }
-.cons-header h3 { font-size: 1rem; margin-bottom: .3rem; }
-.cons-tabla-wrap { overflow-x: auto; }
+/* Sin título/descripción arriba — la tabla se ve directo. Encabezado fijo al
+   bajar (position:sticky lo pone _consTerm_aplicarSticky en consolidado.js,
+   midiendo el alto real de la primera fila para ubicar la segunda). */
+.cons-tabla-wrap { flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto; }
 .tabla-consolidado { width: max-content; min-width: 100%; border-collapse: collapse; font-size: .82rem; }
 .tabla-consolidado th, .tabla-consolidado td { border: 1px solid var(--borde-suave); padding: .4rem .55rem; text-align: center; }
 .tabla-consolidado thead th { font-weight: 700; font-size: .75rem; }
@@ -725,12 +774,23 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .cons-real  { font-weight: 600; }
 
 /* ── Gráficos ─────────────────────────────────────────────── */
-.graf-leyenda { display: flex; gap: .9rem; flex-wrap: wrap; margin-bottom: .75rem; font-size: .78rem; color: var(--texto-2); }
+/* Sin título/descripción arriba. Leyenda ABAJO del gráfico, pegada (antes
+   iba arriba). El ancho real del <svg> lo mide graficos.js en vivo contra
+   el contenedor — por eso no hace falta scroll horizontal. El scroll
+   vertical (para edificios con muchos pisos, donde el alto del gráfico
+   supera la pantalla) va en .graf-contenedor, que envuelve el <svg> y la
+   leyenda juntos: así, si el gráfico entra completo en la pantalla, la
+   leyenda queda pegada justo debajo (sin el hueco que dejaba poner
+   flex:1 directo en .graf-svg-wrap, que estiraba el svg-wrap a ocupar
+   todo el alto del panel aunque el gráfico fuera más chico). */
+.graf-contenedor { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+.graf-svg-wrap { flex-shrink: 0; }
+.graf-leyenda { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .78rem; color: var(--texto-2); flex-shrink: 0; }
+.graf-leyenda-abajo { margin-top: .75rem; }
 .graf-leyenda-item { display: flex; align-items: center; gap: .35rem; }
 .graf-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .graf-linea-muestra { width: 18px; height: 0; border-top: 2.5px solid var(--texto-2); display: inline-block; }
 .graf-linea-muestra.graf-punteada { border-top-style: dashed; }
-.graf-svg-wrap { overflow-x: auto; }
 .graf-svg { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radio-sm); }
 
 /* ── Programación (Paso 4 del asistente) ─────────────────────────────────── */

@@ -150,12 +150,14 @@ function _consTerm_render(panel, config, historial) {
     return `<th style="background:${c.fondo};color:${c.txt};">Prog.</th><th style="background:${c.fondo};color:${c.txt};">Real</th>`;
   }).join('');
 
+  // Piso programado/real (no % de avance) — pedido de María Paz para leer
+  // la curva en la misma magnitud que el gráfico (eje Y = piso aprox.).
   const filasHtml = filas.map(function(fila) {
     const celdas = fases.map(function(f) {
       const p = fila.prog && fila.prog[f];
       const r = fila.real && fila.real[f];
-      const pTxt = (p && p.pct !== null && p.pct !== undefined) ? interfaz_fmtPct(p.pct) : '—';
-      const rTxt = (r && r.pct !== null && r.pct !== undefined) ? interfaz_fmtPct(r.pct) : '—';
+      const pTxt = (p && p.piso !== null && p.piso !== undefined) ? interfaz_fmtNum(p.piso) : '—';
+      const rTxt = (r && r.piso !== null && r.piso !== undefined) ? interfaz_fmtNum(r.piso) : '—';
       return `<td class="cons-prog">${pTxt}</td><td class="cons-real">${rTxt}</td>`;
     }).join('');
     return `<tr>
@@ -165,18 +167,102 @@ function _consTerm_render(panel, config, historial) {
     </tr>`;
   }).join('');
 
+  // Sin título/descripción arriba — se ve la tabla directo (pedido de María Paz).
   panel.innerHTML = `
-    <div class="cons-header">
-      <h3>Terminaciones · Consolidado</h3>
-      <p class="cf-hint">Programado vs real, semana a semana. "—" = sin programa cargado o sin avance confirmado esa semana.</p>
-    </div>
     <div class="cons-tabla-wrap">
       <table class="tabla-consolidado">
         <thead>
-          <tr><th rowspan="2">Lunes</th><th rowspan="2">Viernes</th>${theadFases}</tr>
+          <tr><th rowspan="2">Inicio</th><th rowspan="2">Término</th>${theadFases}</tr>
           <tr>${theadSub}</tr>
         </thead>
         <tbody>${filasHtml}</tbody>
       </table>
     </div>`;
+
+  _consTerm_aplicarSticky(panel);
+}
+
+// Encabezado fijo al bajar (dos filas: fases arriba, Prog./Real abajo). Se
+// mide en vivo la altura real de la primera fila para ubicar la segunda
+// justo debajo — evita hardcodear un alto que se desajusta con cualquier
+// cambio de tipografía/padding.
+function _consTerm_aplicarSticky(panel) {
+  const filas = panel.querySelectorAll('.tabla-consolidado thead tr');
+  if (filas.length < 2) return;
+  const fila1 = filas[0], fila2 = filas[1];
+  Array.from(fila1.children).forEach(function(th) {
+    th.style.position = 'sticky';
+    th.style.top = '0';
+    th.style.zIndex = '6';
+  });
+  const altoFila1 = fila1.getBoundingClientRect().height;
+  Array.from(fila2.children).forEach(function(th) {
+    th.style.position = 'sticky';
+    th.style.top = altoFila1 + 'px';
+    th.style.zIndex = '5';
+  });
+}
+
+// ── Exportar historial semanal (Excel) ───────────────────────────────────────
+// Respuesta a "dónde está la base de datos, la podría descargar" — hoy el
+// historial vive en Firestore + una copia local, sin ningún archivo
+// descargable. Esta función genera ese archivo: una hoja con el avance por
+// fase (acumulado + el "puro" de cada semana) y otra por actividad, tal como
+// se pidió al construir el historial en v4.61.
+function consolidado_exportarHistorialExcel(idProyecto) {
+  if (typeof XLSX === 'undefined') {
+    interfaz_mostrarToast('La librería Excel no está lista. Reintenta en un momento.', 'error');
+    return;
+  }
+  const config = datos_cargarProyecto(idProyecto);
+  if (!config) { interfaz_mostrarToast('No se encontró el proyecto.', 'error'); return; }
+
+  const historial = (typeof datos_obtenerHistorial === 'function') ? datos_obtenerHistorial(idProyecto) : {};
+  const semanas = Object.keys(historial).sort();
+
+  if (!semanas.length) {
+    interfaz_mostrarToast('Todavía no hay historial guardado — confirma al menos una semana de avances primero.', 'aviso', 4500);
+    return;
+  }
+
+  const fasesActivas = (typeof logica_fasesEfectivas === 'function') ? logica_fasesEfectivas(config) : [1, 2, 3, 4, 5, 6];
+
+  const filasFase = [['Semana', 'Fase', '% Avance acumulado', 'Piso acumulado', '% Avance de la semana', 'Piso de la semana']];
+  semanas.forEach(function(sem) {
+    const snap = historial[sem];
+    fasesActivas.forEach(function(f) {
+      const d = snap.fases && snap.fases[f];
+      if (!d) return;
+      const nombreFase = NOMBRES_FASES[f].split('–')[0].trim();
+      filasFase.push([sem, nombreFase, d.avancePct, d.piso, d.avancePctSemanal, d.pisoSemanal]);
+    });
+  });
+
+  const filasAct = [['Semana', 'Actividad', 'Deptos terminados (acumulado)', '% Avance acumulado', 'Deptos de la semana', '% Avance de la semana']];
+  semanas.forEach(function(sem) {
+    const snap = historial[sem];
+    const numeros = Object.keys(snap.actividades || {}).map(Number).sort(function(a, b) { return a - b; });
+    numeros.forEach(function(numero) {
+      const d = snap.actividades[numero];
+      const nombre = (typeof actividades_getNombreProyecto === 'function') ? actividades_getNombreProyecto(config, numero) : ('Actividad ' + numero);
+      filasAct.push([sem, numero + ' - ' + nombre, d.deptos, d.avancePct, d.deptosSemanal, d.avancePctSemanal]);
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasFase), 'Por fase');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasAct), 'Por actividad');
+
+  const nombreProy = (config.nombre || 'proyecto').replace(/\s+/g, '_');
+  const fecha = new Date().toISOString().slice(0, 10);
+  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'historial_' + nombreProy + '_' + fecha + '.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  interfaz_mostrarToast('Historial exportado.', 'exito');
 }
