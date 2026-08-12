@@ -5,7 +5,7 @@ let _proyectoActivo = null;
 let _tabActiva = null;
 
 const VISTAS = ['v-inicio', 'v-config', 'v-proyecto'];
-const TABS   = ['tab-term'];
+const TABS   = ['tab-graficos', 'tab-consolidado-og', 'tab-term', 'tab-consolidado-term', 'tab-fotografico'];
 
 function router_ir(vista, opciones = {}) {
   // Si salimos de v-proyecto, verificar si hay avances pendientes de guardar
@@ -92,7 +92,11 @@ function router_mostrarTab(tab) {
   if (!id) return;
 
   switch (tab) {
-    case 'tab-term': terminaciones_inicializar(id); break;
+    case 'tab-term':             terminaciones_inicializar(id); break;
+    case 'tab-consolidado-term': if (typeof consolidadoTerm_inicializar === 'function') consolidadoTerm_inicializar(id); break;
+    case 'tab-graficos':         if (typeof graficos_inicializar === 'function') graficos_inicializar(id); break;
+    // tab-consolidado-og y tab-fotografico: sin inicializador — su panel es un
+    // aviso estático "próximamente" (ver index.html), quedan para una próxima etapa.
   }
 }
 

@@ -285,6 +285,18 @@ function _interfaz_registrarNavegacionGlobal() {
       router_mostrarTab(btn.dataset.tab);
     });
   });
+
+  // Menú lateral de la vista proyecto: al abrir un grupo (Obra Gruesa,
+  // Terminaciones) se cierran los demás.
+  document.querySelectorAll('.proy-nav-grupo-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const grupo = header.closest('.proy-nav-grupo');
+      if (!grupo) return;
+      const yaAbierto = grupo.classList.contains('abierto');
+      document.querySelectorAll('.proy-nav-grupo').forEach(g => g.classList.remove('abierto'));
+      if (!yaAbierto) grupo.classList.add('abierto');
+    });
+  });
 }
 
 // ── Formateo de números ──────────────────────────────────────────────────────

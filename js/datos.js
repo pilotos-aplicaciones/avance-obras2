@@ -198,6 +198,15 @@ function datos_subirAhora(idProyecto) {
     localStorage.setItem(_PRE + 'proyecto_' + idProyecto, JSON.stringify(config));
   }
 
+  // Historial semanal para "Consolidado": una foto de esta semana de control,
+  // por actividad y por fase (acumulado + delta vs la semana anterior). No
+  // afecta el guardado normal — si algo falla aquí no se pierde el avance.
+  try {
+    _datos_registrarHistorialSemana(idProyecto, config);
+  } catch (err) {
+    console.warn('[COA] No se pudo registrar el historial semanal:', err.message);
+  }
+
   // Si no hay internet: marcar para subir al reconectar (no re-subimos todo a ciegas).
   if (!datos_estaOnline()) {
     _datos_marcarPorSubir(idProyecto);
@@ -206,6 +215,73 @@ function datos_subirAhora(idProyecto) {
   }
   _fs_setEstado('sincronizando');
   _fs_subirProyecto(idProyecto);
+}
+
+// ── Historial semanal (para Consolidado: programado vs real) ────────────────
+// Se guarda UNA entrada por semana de control (viernes), con el acumulado y el
+// delta de esa semana, por actividad y por fase. Local: objeto en localStorage
+// keyed por fecha. Remoto: subcolección (no el mismo doc del proyecto) para
+// que una obra de varios años no choque con el límite de tamaño de un
+// documento de Firestore.
+function _datos_historialLocal(idProyecto) {
+  const raw = localStorage.getItem(_PRE + 'historial_' + idProyecto);
+  return raw ? JSON.parse(raw) : {};
+}
+
+function datos_obtenerHistorial(idProyecto) {
+  return _datos_historialLocal(idProyecto);
+}
+
+function _datos_registrarHistorialSemana(idProyecto, config) {
+  const semanaCtrl = datos_cargarSemanaControl(idProyecto);
+  const semana = semanaCtrl && semanaCtrl.semana;
+  if (!semana) return; // sin semana de control fijada, no hay a qué fecha asociar el snapshot
+
+  if (typeof consolidado_construirSnapshotSemana !== 'function') return;
+
+  const historial = _datos_historialLocal(idProyecto);
+  const matricesActuales = datos_cargarMatricesOk(idProyecto);
+
+  // "Semana anterior" = la entrada de historial más reciente con fecha ANTERIOR
+  // a la semana que se está guardando (no necesariamente la semana calendario
+  // inmediatamente anterior, por si se saltó alguna).
+  const fechaAnterior = Object.keys(historial)
+    .filter(function(f) { return f < semana; })
+    .sort()
+    .pop();
+  const snapshotAnterior = fechaAnterior ? historial[fechaAnterior] : null;
+
+  const snapshot = consolidado_construirSnapshotSemana(config, matricesActuales, snapshotAnterior);
+  snapshot.semana     = semana;
+  snapshot.guardadoEn = new Date().toISOString();
+  snapshot.autor      = localStorage.getItem(_PRE + 'autor') || _DEVICE_ID;
+
+  historial[semana] = snapshot;
+  localStorage.setItem(_PRE + 'historial_' + idProyecto, JSON.stringify(historial));
+
+  if (_db) {
+    _db.collection(_FS_COL).doc(idProyecto).collection('historial').doc(semana).set(snapshot)
+      .catch(function(err) { console.warn('[COA] Error subiendo historial semanal:', err.message); });
+  }
+}
+
+// Trae el historial completo desde Firestore y lo fusiona con el local (gana
+// Firestore en caso de choque, porque puede traer semanas guardadas desde otro
+// dispositivo). Se llama al abrir la pestaña "Consolidado", no en cada carga
+// de la app, para no pagar esa lectura si nadie mira esa pestaña.
+function datos_sincronizarHistorial(idProyecto, cb) {
+  if (!_db) { cb(_datos_historialLocal(idProyecto)); return; }
+  _db.collection(_FS_COL).doc(idProyecto).collection('historial').get()
+    .then(function(snap) {
+      const historial = _datos_historialLocal(idProyecto);
+      snap.forEach(function(doc) { historial[doc.id] = doc.data(); });
+      localStorage.setItem(_PRE + 'historial_' + idProyecto, JSON.stringify(historial));
+      cb(historial);
+    })
+    .catch(function(err) {
+      console.warn('[COA] Error sincronizando historial:', err.message);
+      cb(_datos_historialLocal(idProyecto));
+    });
 }
 
 // ── Matrices de terminaciones (estado actual) ────────────────────────────────

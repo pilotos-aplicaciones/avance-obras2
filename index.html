@@ -25,7 +25,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name">Control de Avances</span>
-        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.60</span></span>
+        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.61</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -65,7 +65,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name" id="cf-titulo-nav">Nuevo Proyecto</span>
-        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.60</span></span>
+        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.61</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -115,9 +115,6 @@
         <span class="nav-app-sub" id="proyecto-sub-header"></span>
       </div>
     </div>
-    <div class="proyecto-tabs">
-      <button class="tab-btn" data-tab="tab-term">📋 Avances Terminaciones</button>
-    </div>
     <span class="navbar-spacer"></span>
     <button class="nbtn nbtn-secondary" id="btn-volver-inicio">← Inicio</button>
     <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
@@ -141,9 +138,53 @@
 
   <div class="proyecto-body">
 
-    <!-- Tab: Avance Terminaciones -->
-    <div id="panel-tab-term" class="panel-tab" style="display:none">
-      <!-- renderizado por terminaciones.js -->
+    <!-- Menú lateral: Gráficos / Obra Gruesa / Terminaciones / Informe fotográfico -->
+    <nav class="proy-nav" id="proy-nav">
+      <button class="proy-nav-top" data-tab="tab-graficos">📊 Gráficos</button>
+
+      <div class="proy-nav-grupo" data-grupo="og">
+        <button class="proy-nav-grupo-header">🏗 Obra Gruesa <span class="proy-nav-flecha">▶</span></button>
+        <div class="proy-nav-subitems">
+          <button class="proy-nav-sub" data-tab="tab-consolidado-og" disabled>Consolidado <span class="proy-nav-prox">Próximamente</span></button>
+        </div>
+      </div>
+
+      <div class="proy-nav-grupo abierto" data-grupo="term">
+        <button class="proy-nav-grupo-header">🎨 Terminaciones <span class="proy-nav-flecha">▶</span></button>
+        <div class="proy-nav-subitems">
+          <button class="proy-nav-sub" data-tab="tab-term">Registro avance</button>
+          <button class="proy-nav-sub" data-tab="tab-consolidado-term">Consolidado</button>
+        </div>
+      </div>
+
+      <button class="proy-nav-top" data-tab="tab-fotografico" disabled>📷 Informe fotográfico <span class="proy-nav-prox">Próximamente</span></button>
+    </nav>
+
+    <div class="proy-contenido">
+      <!-- Tab: Gráficos (Obra Gruesa + Terminaciones) -->
+      <div id="panel-tab-graficos" class="panel-tab" style="display:none">
+        <!-- renderizado por graficos.js -->
+      </div>
+
+      <!-- Tab: Obra Gruesa · Consolidado (pendiente) -->
+      <div id="panel-tab-consolidado-og" class="panel-tab" style="display:none">
+        <div class="proy-nav-placeholder">🏗 Obra Gruesa llega en una próxima etapa.</div>
+      </div>
+
+      <!-- Tab: Avance Terminaciones -->
+      <div id="panel-tab-term" class="panel-tab" style="display:none">
+        <!-- renderizado por terminaciones.js -->
+      </div>
+
+      <!-- Tab: Terminaciones · Consolidado -->
+      <div id="panel-tab-consolidado-term" class="panel-tab" style="display:none">
+        <!-- renderizado por consolidado.js -->
+      </div>
+
+      <!-- Tab: Informe fotográfico (pendiente) -->
+      <div id="panel-tab-fotografico" class="panel-tab" style="display:none">
+        <div class="proy-nav-placeholder">📷 Informe fotográfico llega en una próxima etapa.</div>
+      </div>
     </div>
 
   </div>
@@ -236,6 +277,8 @@
 <!-- Módulos de la app -->
 <script src="js/actividades.js"></script>
 <script src="js/logica.js"></script>
+<!-- Consolidado: cruce programado vs real (usado por datos.js, terminaciones.js y graficos.js) -->
+<script src="js/consolidado.js"></script>
 <script src="js/datos.js"></script>
 <!-- PILOTO: login con Google, roles y permisos -->
 <script src="js/auth-piloto.js"></script>
@@ -244,6 +287,7 @@
 <script src="js/semana-control.js"></script>
 <script src="js/config-proyecto.js"></script>
 <script src="js/terminaciones.js"></script>
+<script src="js/graficos.js"></script>
 <script src="js/revision.js"></script>
 
 <!-- Botones de desplazamiento móvil (función aislada — v4.54) -->

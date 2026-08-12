@@ -16,6 +16,7 @@ function configProyecto_iniciarNuevo() {
     nombresActividades: {},
     actividadesCustom: [],
     secuenciaDeptos: null,
+    programacion: [],
   };
   _cf_modoEdicion = false;
   _cf_paso = 1;
@@ -30,6 +31,7 @@ function configProyecto_iniciarEdicion(id) {
   if (!_cf.nombresActividades) _cf.nombresActividades = {};
   if (!_cf.actividadesCustom) _cf.actividadesCustom = [];
   if (!('secuenciaDeptos' in _cf)) _cf.secuenciaDeptos = null;
+  if (!_cf.programacion) _cf.programacion = [];
   _cf_modoEdicion = true;
   _cf_paso = 1;
   _cf_renderizar();
@@ -255,20 +257,140 @@ function _cf_paso3() {
   </div>`;
 }
 
-// ── Paso 4: Programaciones ───────────────────────────────────────────────────
+// ── Paso 4: Programación ─────────────────────────────────────────────────────
+// Se sube el Excel de planificación tal cual (hoja "Terminaciones"): una fila
+// por semana con Fecha Inicio, Fecha Término, Piso App Obra Gruesa, y por cada
+// Fase 1-6 el % Acum y Piso App programado. La app no calcula nada, solo lo
+// guarda para cruzarlo después con el avance real (ver js/consolidado.js).
 
 function _cf_paso4() {
-  return `
-  <div class="cf-seccion cf-paso-nodisp">
-    <h3>Programación planificada</h3>
-    <div class="cf-nodisp-aviso">
-      <span class="cf-nodisp-icono">🔒</span>
-      <div>
-        <p class="cf-nodisp-titulo">No disponible en versión de prueba</p>
-        <p class="cf-hint">Esta función permite importar la planificación inicial del proyecto (curvas programadas de Obra Gruesa y Terminaciones). Se habilitará en la versión completa de la plataforma.</p>
+  const prog = _cf.programacion || [];
+
+  if (!prog.length) {
+    return `
+    <div class="cf-seccion">
+      <h3>Programación planificada</h3>
+      <p class="cf-hint" style="margin-bottom:1rem;">Sube el Excel de planificación (hoja "Terminaciones") con el % acumulado y piso aproximado programado, semana por semana, por cada fase. La app no recalcula estos valores, solo los guarda para comparar contra el avance real.</p>
+      <div class="cf-prog-upload" id="cf-prog-upload">
+        <div class="cf-prog-icono">📄</div>
+        <p>Arrastra el archivo aquí o</p>
+        <button type="button" class="btn-primario" id="cf-btn-prog-seleccionar">Seleccionar archivo Excel</button>
+        <input type="file" id="cf-input-programacion" accept=".xlsx" style="display:none">
+        <p class="cf-hint" style="margin-top:.75rem;">Columnas esperadas: Fecha Inicio, Fecha Término, Piso App Obra Gruesa, y por cada Fase 1 a 6: % Acum Fase N / Piso App Fase N.</p>
       </div>
+    </div>`;
+  }
+
+  const primera = prog[0];
+  const ultima  = prog[prog.length - 1];
+  return `
+  <div class="cf-seccion">
+    <h3>Programación planificada</h3>
+    <div class="cf-prog-resumen">
+      <p class="cf-prog-ok">✓ Programación cargada</p>
+      <p class="cf-hint">${prog.length} semanas · ${logica_formatearFecha(primera.fechaInicio)} al ${logica_formatearFecha(ultima.fechaTermino)}</p>
+      <button type="button" class="btn-secundario" id="cf-btn-prog-seleccionar" style="margin-top:.5rem;">Reemplazar archivo</button>
+      <input type="file" id="cf-input-programacion" accept=".xlsx" style="display:none">
     </div>
   </div>`;
+}
+
+// Lee el Excel de planificación y lo guarda tal cual en _cf.programacion.
+// Formato estricto (mismas columnas que ya produce la planificación de la
+// empresa) — si no calza, rechaza la carga completa y no toca lo que hubiera.
+function _cf_importarProgramacion(file) {
+  if (typeof XLSX === 'undefined') {
+    interfaz_mostrarToast('La librería Excel no está lista. Reintenta en un momento.', 'error');
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+
+      var sheetName = 'Terminaciones';
+      if (!wb.SheetNames.includes(sheetName)) {
+        var found = wb.SheetNames.find(function(n) { return n.trim().toLowerCase() === sheetName.toLowerCase(); });
+        if (!found) {
+          interfaz_mostrarToast('No se encontró la hoja "Terminaciones" en el archivo.', 'error');
+          return;
+        }
+        sheetName = found;
+      }
+
+      var ws   = wb.Sheets[sheetName];
+      var data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      if (!data.length) {
+        interfaz_mostrarToast('La hoja "Terminaciones" está vacía.', 'error');
+        return;
+      }
+
+      var header = (data[0] || []).map(function(h) { return (h || '').toString().trim().toLowerCase(); });
+      var errores = [];
+      function chk(idx, fragmentos) {
+        var h  = header[idx] || '';
+        var ok = fragmentos.every(function(f) { return h.indexOf(f) !== -1; });
+        if (!ok) errores.push('Columna ' + (idx + 1) + ' ("' + ((data[0] || [])[idx] || 'vacía') + '") debía contener: ' + fragmentos.join(' + '));
+      }
+      chk(0, ['fecha', 'inicio']);
+      chk(1, ['fecha', 'rmino']); // cubre "término"/"termino" sin pelear con el acento
+      chk(2, ['piso', 'obra gruesa']);
+      for (var n = 1; n <= 6; n++) {
+        chk(3 + (n - 1) * 2, ['% acum', 'fase ' + n]);
+        chk(4 + (n - 1) * 2, ['piso app', 'fase ' + n]);
+      }
+      if (errores.length) {
+        interfaz_mostrarToast('El archivo no calza con el formato esperado. ' + errores[0], 'error', 6500);
+        return;
+      }
+
+      function fechaISO(v) {
+        if (v instanceof Date && !isNaN(v.getTime())) {
+          var y = v.getFullYear(), m = String(v.getMonth() + 1).padStart(2, '0'), d = String(v.getDate()).padStart(2, '0');
+          return y + '-' + m + '-' + d;
+        }
+        return null;
+      }
+      function num(v) {
+        if (v === null || v === undefined || v === '') return null;
+        var n = parseFloat(v);
+        return isNaN(n) ? null : n;
+      }
+
+      var filas = [];
+      for (var r = 1; r < data.length; r++) {
+        var row = data[r] || [];
+        var fInicio  = fechaISO(row[0]);
+        var fTermino = fechaISO(row[1]);
+        if (!fInicio && !fTermino) continue; // fila vacía (cola de la tabla)
+
+        var fila = { fechaInicio: fInicio, fechaTermino: fTermino, pisoOG: num(row[2]), fases: {} };
+        for (var n2 = 1; n2 <= 6; n2++) {
+          var pct  = num(row[3 + (n2 - 1) * 2]);
+          var piso = num(row[4 + (n2 - 1) * 2]);
+          fila.fases[n2] = {
+            pct:  pct  === null ? null : parseFloat((pct * 100).toFixed(1)),
+            piso: piso === null ? null : parseFloat(piso.toFixed(2)),
+          };
+        }
+        filas.push(fila);
+      }
+
+      if (!filas.length) {
+        interfaz_mostrarToast('No se encontraron filas de programación en el archivo.', 'error');
+        return;
+      }
+
+      _cf.programacion = filas;
+      interfaz_mostrarToast('Programación cargada: ' + filas.length + ' semanas.', 'exito');
+      _cf_renderizarPaso();
+    } catch (err) {
+      console.error('[COA] Error importando programación:', err);
+      interfaz_mostrarToast('No se pudo leer el archivo. Revisa que sea un Excel válido.', 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ── Registro de eventos por paso ─────────────────────────────────────────────
@@ -508,7 +630,16 @@ function _cf_registrarEventosPaso() {
     });
   }
 
-  // Paso 4: no disponible en versión de prueba — sin eventos que registrar.
+  if (_cf_paso === 4) {
+    document.getElementById('cf-btn-prog-seleccionar')?.addEventListener('click', () => {
+      document.getElementById('cf-input-programacion')?.click();
+    });
+    document.getElementById('cf-input-programacion')?.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) _cf_importarProgramacion(file);
+      e.target.value = '';
+    });
+  }
 }
 
 // ── Drag & drop de actividades en Paso 3 ─────────────────────────────────────

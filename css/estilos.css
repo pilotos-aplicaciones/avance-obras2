@@ -265,25 +265,6 @@ html, body {
 .nav-dropdown-item.peligro:hover { background: var(--red-l); }
 
 
-/* Tabs de proyecto — oculto mientras haya solo una tab */
-.proyecto-tabs { display: none; }
-.proyecto-tabs::-webkit-scrollbar { display: none; }
-
-.tab-btn {
-  padding: .45rem .9rem;
-  border: 1.5px solid var(--borde);
-  border-radius: 999px;
-  background: transparent;
-  font-size: .82rem;
-  font-weight: 500;
-  color: var(--texto-2);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all .15s;
-}
-.tab-btn:hover  { border-color: var(--acento); color: var(--acento); }
-.tab-btn.activo { background: var(--acento); border-color: var(--acento); color: #fff; }
-
 /* ── Botones ──────────────────────────────────────────────── */
 
 button { font-family: inherit; cursor: pointer; border: none; outline: none; }
@@ -690,97 +671,72 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 
 /* ── Vista Proyecto ───────────────────────────────────────── */
 
-.proyecto-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--fondo-card); }
-.panel-tab { flex: 1; min-height: 0; overflow-y: auto; overflow-x: auto; padding: 1.25rem; background: var(--fondo-card); }
+.proyecto-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: row; background: var(--fondo-card); }
 
-/* ── OG tabla semanal ─────────────────────────────────────── */
+/* Menú lateral de la vista proyecto: Gráficos / Obra Gruesa / Terminaciones / Informe fotográfico */
+.proy-nav {
+  width: 220px; flex-shrink: 0; overflow-y: auto;
+  background: var(--fondo-alt); border-right: 1.5px solid var(--borde);
+  padding: .75rem; display: flex; flex-direction: column; gap: .2rem;
+}
+.proy-nav-top, .proy-nav-grupo-header, .proy-nav-sub {
+  display: flex; align-items: center; justify-content: space-between; gap: .4rem;
+  width: 100%; text-align: left; font-family: inherit;
+  border-radius: var(--radio-sm); background: transparent; color: var(--texto);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.proy-nav-top, .proy-nav-grupo-header { padding: .55rem .7rem; font-size: .85rem; font-weight: 600; }
+.proy-nav-top:hover:not(:disabled), .proy-nav-grupo-header:hover { background: var(--borde); }
+.proy-nav-top:disabled { color: var(--texto-3); cursor: default; }
+.proy-nav-top.activo { background: var(--acento); color: #fff; }
 
-/* El panel OG es flex column; sin padding propio (lo añade cada sub-render) */
-#panel-tab-og {
-  overflow: hidden;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
+.proy-nav-flecha { font-size: .62rem; color: var(--texto-3); transition: transform .15s; }
+.proy-nav-grupo.abierto .proy-nav-flecha { transform: rotate(90deg); }
+.proy-nav-subitems { display: none; flex-direction: column; gap: .1rem; padding-left: .5rem; margin-top: .1rem; }
+.proy-nav-grupo.abierto .proy-nav-subitems { display: flex; }
+
+.proy-nav-sub {
+  padding: .45rem .7rem; font-size: .8rem; color: var(--texto-2);
+  border-left: 2px solid var(--borde); border-radius: 0 var(--radio-sm) var(--radio-sm) 0;
+}
+.proy-nav-sub:hover:not(:disabled) { color: var(--acento); border-color: var(--acento); }
+.proy-nav-sub:disabled { color: var(--texto-3); cursor: default; }
+.proy-nav-sub.activo { color: var(--acento); font-weight: 600; border-color: var(--acento); background: var(--fondo-card); }
+
+.proy-nav-prox {
+  font-size: .58rem; font-weight: 700; color: var(--texto-3); background: var(--surface2);
+  padding: .05rem .35rem; border-radius: 8px; text-transform: uppercase; letter-spacing: .02em;
 }
 
-/* Sub-tabs nunca se van con el scroll */
-.og-subtabs { flex-shrink: 0; }
+.proy-nav-placeholder { padding: 3rem 1rem; text-align: center; color: var(--texto-2); font-size: .9rem; line-height: 1.7; }
 
-/* Contenedor dinámico del sub-contenido */
-#og-subcontent {
-  flex: 1;
-  min-height: 0;
-}
+.proy-contenido { flex: 1; min-height: 0; overflow-y: auto; overflow-x: auto; }
+.panel-tab { padding: 1.25rem; background: var(--fondo-card); }
 
-/* Consolidado: el scroll de la tabla rellena el espacio disponible */
-#og-subcontent.og-sub-consolidado {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
+/* ── Consolidado (Terminaciones / Obra Gruesa) ───────────────────────────── */
+.cons-header { margin-bottom: 1rem; }
+.cons-header h3 { font-size: 1rem; margin-bottom: .3rem; }
+.cons-tabla-wrap { overflow-x: auto; }
+.tabla-consolidado { width: max-content; min-width: 100%; border-collapse: collapse; font-size: .82rem; }
+.tabla-consolidado th, .tabla-consolidado td { border: 1px solid var(--borde-suave); padding: .4rem .55rem; text-align: center; }
+.tabla-consolidado thead th { font-weight: 700; font-size: .75rem; }
+.cons-fecha { white-space: nowrap; color: var(--texto-2); font-family: var(--mono); font-size: .76rem; }
+.cons-prog  { color: var(--texto-2); }
+.cons-real  { font-weight: 600; }
 
-/* Pisos: scroll vertical normal */
-#og-subcontent.og-sub-pisos {
-  overflow-y: auto;
-}
+/* ── Gráficos ─────────────────────────────────────────────── */
+.graf-leyenda { display: flex; gap: .9rem; flex-wrap: wrap; margin-bottom: .75rem; font-size: .78rem; color: var(--texto-2); }
+.graf-leyenda-item { display: flex; align-items: center; gap: .35rem; }
+.graf-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.graf-linea-muestra { width: 18px; height: 0; border-top: 2.5px solid var(--texto-2); display: inline-block; }
+.graf-linea-muestra.graf-punteada { border-top-style: dashed; }
+.graf-svg { width: 100%; height: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radio-sm); }
 
-/* Layout consolidado — ocupa toda la altura y reparte espacio */
-.og-tabla-layout {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: 1rem;
-  width: 100%;
-}
-
-/* La zona de scroll rellena lo que queda tras los KPIs */
-.og-tabla-layout > .tabla-scroll {
-  flex: 1;
-  overflow: auto;
-  min-height: 0;
-}
-.og-kpi-bar { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
-
-.tabla-og { width: 100%; border-collapse: collapse; }
-.tabla-og th { font-size: .75rem; font-weight: 700; padding: .4rem .5rem; border: 1px solid var(--borde-suave); white-space: nowrap; text-align: center; position: sticky; top: 0; z-index: 3; }
-.tabla-og td { padding: .28rem .5rem; border: 1px solid var(--borde-suave); font-size: .8rem; text-align: center; }
-
-/* Encabezados de grupo */
-.og-th-prog     { background: #1e3a5f; color: #fff; }
-.og-th-real     { background: #14532d; color: #fff; }
-.og-th-dif      { background: #f3f4f6; color: #374151; vertical-align: middle; }
-.og-th-fecha    { background: var(--fondo-alt); color: var(--texto-2); vertical-align: middle; }
-
-/* Sub-encabezados */
-.og-th-prog-sub { background: #dbeafe; color: #1e3a5f; }
-.og-th-real-sub { background: #dcfce7; color: #14532d; }
-.og-th-prog-tot { background: #bfdbfe; color: #1e3a5f; font-weight: 700; }
-.og-th-real-tot { background: #bbf7d0; color: #14532d; font-weight: 700; }
-
-/* Celdas de columnas totales */
-.og-td-prog-tot { background: #eff6ff; text-align: right; font-variant-numeric: tabular-nums; }
-.og-td-real-tot { background: #f0fdf4; text-align: right; font-variant-numeric: tabular-nums; }
-
-/* Fila semana actual */
-.og-fila-actual td { background: #fde047 !important; }
-.og-fila-actual td:first-child { border-left: 3px solid #ca8a04; }
-
-/* Fila de totales */
-.og-fila-totales td { background: #f8fafc; font-weight: 700; border-top: 2px solid var(--borde); }
-
-.og-col-sem  { white-space: nowrap; font-weight: 500; }
-.og-col-num  { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.og-col-edit { padding: .1rem .25rem !important; }
-.og-input-real {
-  width: 68px; padding: .2rem .35rem;
-  border: 1.5px solid var(--borde); border-radius: 4px;
-  font-size: .8rem; text-align: right; font-family: inherit;
-  transition: border-color .15s;
-}
-.og-input-real:focus { border-color: var(--acento); outline: none; box-shadow: 0 0 0 3px rgba(209,48,57,.12); }
-.og-pos { color: var(--exito); font-weight: 600; }
-.og-neg { color: var(--peligro); font-weight: 600; }
+/* ── Programación (Paso 4 del asistente) ─────────────────────────────────── */
+.cf-prog-upload { border: 2px dashed var(--borde); border-radius: var(--radio-sm); padding: 2.25rem 1.5rem; text-align: center; color: var(--texto-2); }
+.cf-prog-icono { font-size: 1.9rem; margin-bottom: .5rem; }
+.cf-prog-resumen { border: 1.5px solid var(--borde); border-radius: var(--radio-sm); padding: 1.25rem; }
+.cf-prog-ok { color: var(--exito); font-weight: 700; font-size: .9rem; margin-bottom: .3rem; }
 
 /* ── Terminaciones matrices ───────────────────────────────── */
 .mat-toolbar {
@@ -908,118 +864,6 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .tabla-resumen td, .tabla-resumen th { vertical-align: middle; }
 .tabla-resumen td { background: var(--surface); }
 
-/* ── Tabla Consolidado (Terminaciones) ──────────────────────────────────────
-   Programado vs Real, una fila por semana de la planificación inicial.
-   Encabezado de 3 niveles: grupo (Prog/Real) ▸ fase ▸ sub-columna (%/Piso).
-   Las reglas usan selectores anidados con `.tabla-consolidado` para vencer la
-   especificidad de `.tabla-mat th` que aplica fondo gris por defecto.
-
-   Layout: `table-layout: fixed` + anchos definidos en <colgroup>. La tabla
-   crece hasta el ancho sumado de las columnas y, si excede el panel, el panel
-   padre (#panel-tab-term) entrega el scroll horizontal — no la propia tabla. */
-.tabla-consolidado {
-  table-layout: fixed;
-  width: max-content;
-  border-collapse: collapse;
-  border: 1.5px solid var(--borde-suave);
-}
-.tabla-consolidado th,
-.tabla-consolidado td {
-  text-align: center;
-  vertical-align: middle;
-  font-size: .8rem;
-  padding: .35rem .4rem;
-  border: 1px solid var(--borde-suave);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tabla-consolidado thead th { font-weight: 600; }
-
-/* Anchos de columnas (vía <colgroup>) — uniformes en todo % y Piso. */
-.col-cons-fecha { width: 105px; }
-.col-cons-num   { width: 68px; }
-
-.tabla-consolidado .th-cons-fecha {
-  background: var(--fondo-alt);
-  color: var(--texto-1);
-  white-space: nowrap;
-}
-.tabla-consolidado .th-cons-grupo {
-  font-size: .9rem;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  font-weight: 700;
-  color: #fff;
-  text-align: center;
-}
-/* Programado y Real: ambos en gris neutro, separados por la línea divisoria
-   (regla `cons-sep-real` más abajo). El usuario prefiere menos color en esta
-   tabla — el énfasis lo dan las fases F1-F6 con sus colores propios. */
-.tabla-consolidado .th-cons-prog,
-.tabla-consolidado .th-cons-real { background: #4a5568; color: #fff; }
-.tabla-consolidado .th-cons-fase {
-  font-size: .78rem;
-  font-weight: 600;
-  padding: .25rem .3rem;
-  text-align: center;
-}
-.tabla-consolidado .th-cons-sub {
-  background: var(--fondo-alt);
-  color: var(--texto-2);
-  font-size: .72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  text-align: center;
-}
-
-.cons-col-fecha {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  color: var(--texto-1);
-}
-
-/* Separador visual grueso entre el bloque Programado y el bloque Real.
-   Cae en la primera columna del bloque Real (OG Real). */
-.tabla-consolidado .cons-sep-real,
-.tabla-consolidado thead th.th-cons-real {
-  border-left: 2px solid #333;
-}
-
-/* Fondo opaco en las dos columnas de fecha del tbody para que al scrollear
-   horizontal NO se vea el contenido pasando por detrás de las celdas fijas. */
-.tabla-consolidado tbody .cons-col-fecha {
-  background: var(--fondo-card);
-}
-
-/* Resaltado de la semana de control — mismo amarillo que OG. */
-.cons-fila-actual td { background: #fde047 !important; }
-.cons-fila-actual td:first-child { border-left: 3px solid #ca8a04; }
-
-/* ── Layout panel-consolidado ───────────────────────────────────────────────
-   Solo cuando estás en la pestaña Consolidado: el panel deja de scrollear,
-   se vuelve flex column. Toolbar y barra de cierre quedan arriba con altura
-   natural. mat-contenido toma todo el espacio restante; dentro de él, el
-   wrapper `.consolidado-wrap` es el único contenedor de scroll. Las otras
-   pestañas no llevan esta clase y mantienen el comportamiento anterior. */
-.panel-consolidado {
-  display: flex !important;
-  flex-direction: column;
-  overflow: hidden !important;
-}
-.panel-consolidado #mat-contenido {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.consolidado-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  border: 1.5px solid var(--borde-suave);
-  border-radius: var(--radio);
-}
-
 /* Selector flotante */
 .mat-flotante {
   position: absolute; z-index: 1000;
@@ -1080,22 +924,6 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .cf-import-texto { font-size: .9rem; font-weight: 600; color: var(--texto); }
 .cf-import-hint  { font-size: .78rem; color: var(--texto-3); }
 .cf-import-preview { margin-top: 1rem; }
-
-/* ── Gráficos ─────────────────────────────────────────────── */
-.graf-seccion  { margin-bottom: 2rem; }
-.graf-titulo   { font-size: .88rem; font-weight: 700; color: var(--texto-2); white-space: nowrap; }
-.graf-header  { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.graf-toggle  { display: flex; gap: .3rem; }
-.graf-kpis    { display: flex; gap: .75rem; flex-wrap: wrap; flex: 1; }
-.kpi-item     { display: flex; flex-direction: column; gap: .15rem; padding: .45rem .75rem; background: var(--fondo-card); border: 1.5px solid var(--borde-suave); border-radius: var(--radio-sm); min-width: 90px; }
-.kpi-label    { font-size: .7rem; color: var(--texto-3); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
-.kpi-val      { font-size: 1.05rem; font-weight: 700; color: var(--texto); }
-.kpi-val.pos  { color: var(--exito); }
-.kpi-val.neg  { color: var(--peligro); }
-.kpi-placeholder { font-size: .82rem; color: var(--texto-3); }
-
-.graf-wrapper { position: relative; height: calc(100vh - 150px); min-height: 450px; background: var(--fondo-card); border: 1.5px solid var(--borde-suave); border-radius: var(--radio); padding: 1rem; }
-.graf-aviso   { font-size: .85rem; color: var(--texto-3); text-align: center; padding: 2rem; }
 
 /* ── Modal ────────────────────────────────────────────────── */
 .modal-overlay {
@@ -1726,165 +1554,16 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   margin-top: .25rem;
 }
 
-/* ── Modal gestión responsables ──────────────────────────── */
-
-.sc-resp-modal {
-  background: var(--fondo-card);
-  border-radius: var(--radio);
-  box-shadow: 0 8px 32px rgba(0,0,0,.18);
-  padding: 1.75rem;
-  width: 720px;
-  max-width: 96vw;
-  max-height: 90vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
-
-.sc-resp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: .25rem;
-}
-
-/* ── Tabla responsables ───────────────────────────────────── */
-
-.tabla-responsables {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .85rem;
-}
-.tabla-responsables th {
-  text-align: left;
-  font-weight: 600;
-  color: var(--texto-2);
-  padding: .4rem .5rem;
-  border-bottom: 1.5px solid var(--borde);
-  font-size: .78rem;
-  text-transform: uppercase;
-  letter-spacing: .03em;
-}
-.tabla-responsables td {
-  padding: .4rem .5rem;
-  vertical-align: top;
-  border-bottom: 1px solid var(--borde-suave);
-}
-
-.resp-permisos-lista {
-  display: flex;
-  flex-direction: column;
-  gap: .2rem;
-}
-
-.resp-perm-label {
-  display: flex;
-  align-items: center;
-  gap: .35rem;
-  font-size: .8rem;
-  color: var(--texto-2);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.resp-perm-label input[type="checkbox"] {
-  accent-color: var(--acento);
-  width: 14px;
-  height: 14px;
-}
-
-.input-sm {
-  width: 100%;
-  border: 1.5px solid var(--borde);
-  border-radius: var(--radio-sm);
-  padding: .3rem .5rem;
-  font-size: .82rem;
-  font-family: inherit;
-  color: var(--texto);
-  background: var(--fondo-alt);
-  min-width: 0;
-}
-.input-sm:focus {
-  outline: none;
-  border-color: var(--acento);
-  background: #fff;
-}
-
-/* ── Sub-tabs OG ──────────────────────────────────────────── */
-.og-subtabs {
-  display: flex;
-  gap: .5rem;
-  padding: .75rem 1.25rem .5rem;
-  border-bottom: 1.5px solid var(--borde-suave);
-}
-.og-subtab {
-  background: var(--fondo-alt);
-  border: 1.5px solid var(--borde);
-  border-radius: var(--radio-sm);
-  padding: .3rem .9rem;
-  font-size: .82rem;
-  font-family: inherit;
-  cursor: pointer;
-  color: var(--texto-2);
-  transition: background .15s, border-color .15s, color .15s;
-}
-.og-subtab.activo {
-  background: var(--acento);
-  color: #fff;
-  border-color: var(--acento);
-}
-.og-subtab:hover:not(.activo) {
-  border-color: var(--acento);
-  color: var(--acento);
-}
-
-/* ── Tabla Fecha Término Pisos ────────────────────────────── */
-.tabla-og-pisos td:first-child { font-weight: 600; text-align: center; vertical-align: middle; }
-.tabla-og-pisos td:nth-child(2) { font-size: .78rem; color: var(--texto-2); }
-
-/* Celda de fecha editable */
-.og-fecha-wrap {
-  display: flex;
-  align-items: center;
-  gap: .3rem;
-  position: relative;
-  justify-content: center;
-}
-.og-fecha-input {
-  width: 100px;
-  padding: .2rem .4rem;
-  border: 1.5px solid var(--borde);
-  border-radius: 4px;
-  font-size: .8rem;
-  font-family: inherit;
-  text-align: center;
-  transition: border-color .15s;
-}
-.og-fecha-input:focus { border-color: var(--acento); outline: none; box-shadow: 0 0 0 3px rgba(209,48,57,.12); }
-.og-fecha-input.invalida { border-color: var(--peligro); }
-.og-fecha-cal-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: .9rem;
-  padding: 0;
-  line-height: 1;
-}
-.og-fecha-cal-btn:hover { opacity: .7; }
-/* El calendario de pisos se posiciona con JS (position:fixed) para escapar del overflow */
-.og-cal-drop { position: fixed !important; min-width: 240px; z-index: 1000; }
-
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
   .navbar { padding: .65rem 1rem; }
-  .proyecto-tabs { gap: .2rem; }
-  .tab-btn { padding: .4rem .7rem; font-size: .75rem; }
+  .proyecto-body { flex-direction: column; }
+  .proy-nav { width: 100%; max-height: 40vh; border-right: none; border-bottom: 1.5px solid var(--borde); }
   .cf-grid-2 { grid-template-columns: 1fr; }
   .inicio-header { padding: 1rem; }
   .inicio-body   { padding: 1rem; }
   .config-cuerpo { padding: 1rem; }
   .panel-tab     { padding: 1rem; }
-  .graf-wrapper  { height: calc(100vh - 140px); min-height: 350px; }
   .sc-barra      { padding: .5rem 1rem; }
   .sc-acciones   { margin-left: 0; }
 }

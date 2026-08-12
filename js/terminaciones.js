@@ -242,10 +242,6 @@ function _mat_sidebarEscritorioHTML() {
     ? 'Todos los pisos'
     : (_mat_pisoFiltro < 0 ? 'Sub ' + Math.abs(_mat_pisoFiltro) : 'Piso ' + _mat_pisoFiltro);
 
-  const filtroActActivo = _mat_tabActiva.startsWith('fase_') && !!_mat_actividadesFiltro[_mat_tabActiva];
-  const hayFiltros      = _mat_pisoFiltro !== 'todos' || Object.values(_mat_actividadesFiltro).some(Boolean);
-  const enFase          = _mat_tabActiva !== 'resumen' && _mat_tabActiva !== 'todas';
-
   return `
     <div class="sidebar-top-bar">
       <button class="sidebar-toggle" id="sidebar-toggle" title="${_mat_sidebarColapsado ? 'Expandir' : 'Colapsar'}">${_mat_sidebarColapsado ? '▶' : '◀'}</button>
