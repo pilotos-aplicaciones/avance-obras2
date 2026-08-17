@@ -25,7 +25,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name">Control de Avances</span>
-        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.65</span></span>
+        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.66</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -65,7 +65,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name" id="cf-titulo-nav">Nuevo Proyecto</span>
-        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.65</span></span>
+        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.66</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -135,15 +135,19 @@
     <button class="navbar-usuario" id="navbar-usuario-proyecto" title="Cambiar nombre de usuario">—</button>
   </nav>
 
-  <div id="barra-control"></div>
-
   <div class="proyecto-body">
 
     <!-- Menú lateral: Gráficos / Obra Gruesa / Terminaciones / Informe fotográfico.
          Un solo botón colapsa/expande TODA la barra (franja de íconos) — no
-         hay otro control de colapsar adentro (pedido de María Paz). -->
+         hay otro control de colapsar adentro (pedido de María Paz). La fecha
+         (viernes de control) vive arriba de todo, dentro de la barra — no
+         como franja horizontal aparte (pedido de María Paz): sigue "mandando"
+         el reporte completo (Gráficos/Terminaciones/Consolidado), pero sin
+         ocupar una barra propia arriba de toda la pantalla. -->
     <nav class="proy-nav" id="proy-nav">
       <button class="proy-nav-toggle" id="proy-nav-toggle" title="Colapsar barra lateral">◀</button>
+
+      <div id="barra-control"></div>
 
       <button class="proy-nav-top" data-tab="tab-graficos"><span class="proy-nav-icono">📊</span><span class="proy-nav-texto">Gráficos</span></button>
 

@@ -693,7 +693,7 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .proy-nav.colapsado .proy-nav-toggle { align-self: center; }
 
 .proy-nav-top, .proy-nav-grupo-header, .proy-nav-sub {
-  display: flex; align-items: center; justify-content: space-between; gap: .4rem;
+  display: flex; align-items: center; justify-content: flex-start; gap: .4rem;
   width: 100%; text-align: left; font-family: inherit;
   border-radius: var(--radio-sm); background: transparent; color: var(--texto);
   transition: background .15s, color .15s, border-color .15s;
@@ -704,6 +704,12 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .proy-nav-top.activo { background: var(--acento); color: #fff; }
 .proy-nav-icono { flex-shrink: 0; }
 
+/* Ícono + texto siempre pegados a la izquierda, con espacio fijo entre
+   ambos (antes usaban justify-content:space-between en el botón completo,
+   que separaba ícono y texto a los extremos cuando no había flecha/badge —
+   se veía desordenado). La flecha y el "Próximamente" son los únicos que se
+   empujan al extremo derecho, con margin-left:auto. */
+.proy-nav-flecha, .proy-nav-prox { margin-left: auto; }
 .proy-nav-flecha { font-size: .62rem; color: var(--texto-3); transition: transform .15s; }
 .proy-nav-grupo.abierto .proy-nav-flecha { transform: rotate(90deg); }
 .proy-nav-subitems { display: none; flex-direction: column; gap: .1rem; padding-left: .5rem; margin-top: .1rem; }
@@ -1316,22 +1322,30 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 
 /* ── Barra de control semanal ─────────────────────────────── */
-
+/* Vive DENTRO de la barra lateral (.proy-nav), arriba de todo — no como
+   franja horizontal aparte (pedido de María Paz): sigue "mandando" el
+   reporte completo (Gráficos/Terminaciones/Consolidado), pero sin ocupar
+   una barra propia arriba de toda la pantalla. Layout apilado (etiqueta
+   arriba, botón de fecha abajo, ancho completo de la columna) para que
+   quepa bien en los 220px de la barra angosta. */
 #barra-control {
-  background: var(--fondo-card);
-  border-bottom: 1.5px solid var(--borde-suave);
+  border-bottom: 1.5px solid var(--borde);
+  padding-bottom: .6rem;
+  margin-bottom: .3rem;
 }
+/* Colapsada: se oculta igual que el resto del contenido de la barra. */
+.proy-nav.colapsado #barra-control { display: none; }
 
 .sc-barra {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: .75rem;
-  padding: .65rem 1.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: .3rem;
+  padding: 0 .1rem;
 }
 
 .sc-label {
-  font-size: .82rem;
+  font-size: .72rem;
   color: var(--texto-3);
   white-space: nowrap;
 }
@@ -1341,11 +1355,15 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 }
 
 .sc-fecha-btn {
-  background: var(--fondo-alt);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--fondo-card);
   border: 1.5px solid var(--borde);
   border-radius: var(--radio-sm);
-  padding: .35rem .75rem;
-  font-size: .85rem;
+  padding: .35rem .6rem;
+  font-size: .82rem;
   cursor: pointer;
   color: var(--texto);
   white-space: nowrap;
@@ -1876,10 +1894,21 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .proy-nav-reg-submenu .mat-sidebar {
   width: 100%;
   min-width: 0;
+  background: transparent; /* mismo tono que .proy-nav — se ve blanco si no, la sangría (border-left) ya lo diferencia */
   border-right: none;
   border-radius: 0 8px 8px 0;
   max-height: 60vh;
 }
+/* Varios hovers de la sidebar de Terminaciones usan var(--surface2)/
+   var(--fondo-alt) — pensados para contrastar contra un fondo BLANCO
+   (.mat-sidebar original). Acá adentro ese tono es el mismo del fondo de
+   .proy-nav, así que quedarían invisibles. Se usa var(--borde), el mismo
+   tono de hover que ya usan los ítems del menú principal. */
+.proy-nav-reg-submenu .sidebar-tab:hover,
+.proy-nav-reg-submenu .sidebar-btn-filtro:hover,
+.proy-nav-reg-submenu .mat-sidebar.colapsado .sidebar-btn-filtro:hover,
+.proy-nav-reg-submenu .sidebar-btn-acciones-toggle:hover,
+.proy-nav-reg-submenu .sidebar-btn-accion-item:hover { background: var(--borde) !important; }
 .proy-nav-reg-submenu .mat-sidebar.colapsado {
   width: 36px;
   min-width: 36px;

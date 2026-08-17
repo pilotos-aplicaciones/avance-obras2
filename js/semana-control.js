@@ -148,6 +148,14 @@ function _sc_seleccionarFecha(fecha) {
   _sc_renderCal();
   const dd = document.getElementById('sc-cal-dropdown');
   if (dd) dd.style.display = 'none';
+
+  // Si el Consolidado está abierto en este momento, refrescarlo — la fila
+  // destacada en amarillo es justamente la del viernes recién elegido acá,
+  // así que si no se refresca queda mostrando el resaltado viejo.
+  if (typeof router_getTabActiva === 'function' && router_getTabActiva() === 'tab-consolidado-term'
+      && typeof consolidadoTerm_inicializar === 'function') {
+    consolidadoTerm_inicializar(_sc_id);
+  }
 }
 
 function _sc_viernesDeEstaSemana() {

@@ -127,15 +127,13 @@ function consolidadoTerm_inicializar(idProyecto) {
   });
 }
 
-// Viernes de la semana calendario actual (hoy), para destacar esa fila en el
-// consolidado — independiente del viernes que esté elegido en el selector de
-// control (ese es "qué semana estoy registrando", esto es "en qué semana real
-// estamos parados hoy").
-function _consTerm_viernesActual() {
-  const hoy = new Date();
-  const dia = hoy.getDay(); // 0=Dom … 6=Sab
-  hoy.setDate(hoy.getDate() + (5 - dia + 7) % 7);
-  return hoy.toISOString().slice(0, 10);
+// Viernes elegido en el selector de control ("Viernes" en la barra lateral) —
+// destaca la fila de la semana que se está reportando en ese momento, no la
+// semana calendario real de hoy (corregido: María Paz aclaró que se refería
+// a la fecha seleccionada en la app, no a "hoy").
+function _consTerm_viernesSeleccionado(idProyecto) {
+  const ctrl = (typeof datos_cargarSemanaControl === 'function') ? datos_cargarSemanaControl(idProyecto) : null;
+  return ctrl && ctrl.semana ? ctrl.semana : null;
 }
 
 function _consTerm_render(panel, config, historial) {
@@ -165,7 +163,7 @@ function _consTerm_render(panel, config, historial) {
     return `<th style="background:${c.enc};color:${c.txt};">Prog.</th><th style="background:${c.enc};color:${c.txt};">Real</th>`;
   }).join('');
 
-  const viernesActual = _consTerm_viernesActual();
+  const viernesSeleccionado = _consTerm_viernesSeleccionado(config.id);
 
   // Piso programado/real (no % de avance) — pedido de María Paz para leer
   // la curva en la misma magnitud que el gráfico (eje Y = piso aprox.).
@@ -177,8 +175,9 @@ function _consTerm_render(panel, config, historial) {
       const rTxt = (r && r.piso !== null && r.piso !== undefined) ? interfaz_fmtNum(r.piso) : '—';
       return `<td class="cons-prog">${pTxt}</td><td class="cons-real">${rTxt}</td>`;
     }).join('');
-    // Destacar la fila de la semana en curso (viernes real de hoy) — pedido de María Paz.
-    const esActual = fila.semana === viernesActual;
+    // Destacar la fila de la semana que se está reportando (viernes elegido
+    // en el selector de control) — pedido de María Paz.
+    const esActual = viernesSeleccionado && fila.semana === viernesSeleccionado;
     return `<tr${esActual ? ' class="cons-fila-actual"' : ''}>
       <td class="cons-fecha">${fila.fechaInicio ? logica_formatearFecha(fila.fechaInicio) : '—'}</td>
       <td class="cons-fecha">${fila.fechaTermino ? logica_formatearFecha(fila.fechaTermino) : '—'}</td>
