@@ -50,22 +50,36 @@ document.addEventListener('DOMContentLoaded', () => {
   btnFlotante?.addEventListener('click', () => {
     const id = typeof router_getProyectoActivo === 'function' ? router_getProyectoActivo() : null;
     if (!id) return;
-    interfaz_mostrarModal(
-      'Guardar avances',
-      '¿Confirmas el guardado de los avances? Los datos se sincronizarán con todos los dispositivos.',
-      () => {
-        datos_subirAhora(id);
-        if (typeof _mat_exportarJSONSilencioso === 'function') _mat_exportarJSONSilencioso(); // respaldo automático silencioso
-        window._coa_guardadoPendiente = false;
-        const btnToolbar = document.getElementById('mat-btn-guardar-avances');
-        if (btnToolbar) btnToolbar.classList.remove('mat-btn-pendiente');
-        if (datos_estaOnline()) {
-          interfaz_mostrarToast('Avances guardados correctamente', 'exito');
-        } else {
-          interfaz_mostrarToast('Avances guardados en este dispositivo. Se sincronizarán cuando vuelva la conexión.', 'aviso', 5000);
+
+    const _confirmarGuardado = () => {
+      interfaz_mostrarModal(
+        'Guardar avances',
+        '¿Confirmas el guardado de los avances? Los datos se sincronizarán con todos los dispositivos.',
+        () => {
+          datos_subirAhora(id);
+          if (typeof _mat_exportarJSONSilencioso === 'function') _mat_exportarJSONSilencioso(); // respaldo automático silencioso
+          window._coa_guardadoPendiente = false;
+          const btnToolbar = document.getElementById('mat-btn-guardar-avances');
+          if (btnToolbar) btnToolbar.classList.remove('mat-btn-pendiente');
+          if (datos_estaOnline()) {
+            interfaz_mostrarToast('Avances guardados correctamente', 'exito');
+          } else {
+            interfaz_mostrarToast('Avances guardados en este dispositivo. Se sincronizarán cuando vuelva la conexión.', 'aviso', 5000);
+          }
         }
-      }
-    );
+      );
+    };
+
+    // Aviso si el viernes elegido ahora mismo ya tiene una semana guardada
+    // — función compartida con el botón ✓ del toolbar (terminaciones.js),
+    // para que avise igual sin importar qué botón se use (escritorio o
+    // móvil, misma lógica, pedido de María Paz: la app funciona igual sin
+    // importar el dispositivo).
+    if (typeof datos_avisarSiSemanaYaGuardada === 'function') {
+      datos_avisarSiSemanaYaGuardada(id, _confirmarGuardado);
+    } else {
+      _confirmarGuardado();
+    }
   });
   // Proxy para detectar cambios en _coa_guardadoPendiente y reflejarlos en el botón
   Object.defineProperty(window, '_coa_guardadoPendiente', {

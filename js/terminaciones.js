@@ -1411,24 +1411,12 @@ function _mat_registrarEventos() {
       );
     };
 
-    // Si el viernes elegido ahora mismo YA tiene una semana guardada,
-    // avisar antes de seguir — si no, guardar de nuevo la reemplaza sin más
-    // aviso (María Paz: "si presiono guardar más de una vez en la misma
-    // semana, se considera el último — necesito saber cuándo estoy
-    // guardando encima de algo que ya guardé").
-    const semanaCtrl = (typeof datos_cargarSemanaControl === 'function') ? datos_cargarSemanaControl(_mat_id) : null;
-    const semana     = semanaCtrl && semanaCtrl.semana;
-    const historial  = (typeof datos_obtenerHistorial === 'function') ? datos_obtenerHistorial(_mat_id) : {};
-    if (semana && historial && historial[semana]) {
-      const fechaTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(semana) : semana;
-      interfaz_mostrarModal(
-        'Ya guardaste esta semana',
-        'La semana del ' + fechaTxt + ' ya tiene avances guardados. Si guardas ahora, se reemplazan por los de hoy.\n' +
-        '¿Es la semana que quieres actualizar?\n' +
-        'Si: presiona confirmar\n' +
-        'No: presiona cancelar y actualiza el viernes antes de guardar.',
-        _mat_confirmarGuardado
-      );
+    // Aviso si el viernes elegido ahora mismo ya tiene una semana guardada
+    // — función compartida con el botón flotante de escritorio (datos.js),
+    // para que avise igual sin importar qué botón se use (móvil o
+    // escritorio, misma lógica, pedido de María Paz).
+    if (typeof datos_avisarSiSemanaYaGuardada === 'function') {
+      datos_avisarSiSemanaYaGuardada(_mat_id, _mat_confirmarGuardado);
     } else {
       _mat_confirmarGuardado();
     }

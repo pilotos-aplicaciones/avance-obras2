@@ -228,6 +228,36 @@ function datos_subirAhora(idProyecto) {
   _fs_subirProyecto(idProyecto);
 }
 
+// Si la semana de control actual YA tiene un guardado en el historial,
+// muestra un aviso antes de seguir — para que quede claro que guardar ahora
+// REEMPLAZA lo que había quedado guardado para esa fecha (María Paz: "si
+// presiono guardar más de una vez en la misma semana, se considera el
+// último — necesito saber cuándo estoy guardando"). Si no hay guardado
+// previo para esa semana, sigue directo sin aviso.
+//
+// Punto único: tanto el botón flotante 💾 (interfaz.js, escritorio) como el
+// botón ✓ del toolbar (terminaciones.js, móvil) llaman a esta misma función
+// — la app debe funcionar igual sin importar el dispositivo, solo cambia la
+// interfaz que dispara el guardado (pedido de María Paz).
+function datos_avisarSiSemanaYaGuardada(idProyecto, continuar) {
+  const semanaCtrl = (typeof datos_cargarSemanaControl === 'function') ? datos_cargarSemanaControl(idProyecto) : null;
+  const semana     = semanaCtrl && semanaCtrl.semana;
+  const historial  = (typeof datos_obtenerHistorial === 'function') ? datos_obtenerHistorial(idProyecto) : {};
+  if (semana && historial && historial[semana]) {
+    const fechaTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(semana) : semana;
+    interfaz_mostrarModal(
+      'Ya guardaste esta semana',
+      'La semana del ' + fechaTxt + ' ya tiene avances guardados. Si guardas ahora, se reemplazan por los de hoy.\n' +
+      '¿Es la semana que quieres actualizar?\n' +
+      'Si: presiona confirmar\n' +
+      'No: presiona cancelar y actualiza el viernes antes de guardar.',
+      continuar
+    );
+  } else {
+    continuar();
+  }
+}
+
 // ── Historial semanal (para Consolidado: programado vs real) ────────────────
 // Se guarda UNA entrada por semana de control (viernes), con el acumulado y el
 // delta de esa semana, por actividad y por fase. Local: objeto en localStorage
