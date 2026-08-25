@@ -1376,12 +1376,13 @@ function _mat_registrarEventos() {
     if (menuDropdownLocal) menuDropdownLocal.style.display = 'none';
     interfaz_mostrarModal(
       '⚠ Resetear avances',
-      'Esto eliminará TODOS los avances de terminaciones del proyecto. Esta acción no se puede deshacer. ¿Estás segura?',
+      'Esto eliminará TODOS los avances de terminaciones del proyecto Y el historial semanal del Consolidado (incluida la base de datos en Firebase). Esta acción no se puede deshacer. ¿Estás segura?',
       () => {
         _mat_datos = {};
         datos_guardarMatrices(_mat_id, _mat_datos);
+        if (typeof datos_borrarHistorial === 'function') datos_borrarHistorial(_mat_id);
         _mat_renderContenido();
-        interfaz_mostrarToast('Avances reseteados.', 'aviso');
+        interfaz_mostrarToast('Avances y Consolidado reseteados.', 'aviso');
       }
     );
   });

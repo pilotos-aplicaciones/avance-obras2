@@ -295,6 +295,24 @@ function datos_sincronizarHistorial(idProyecto, cb) {
     });
 }
 
+// Borra el historial semanal completo de una obra (local y en Firebase) — lo
+// que alimenta el Consolidado. Usado por "Resetear avances" (María Paz pidió
+// que esa acción también limpie el Consolidado, no solo la matriz de avances).
+function datos_borrarHistorial(idProyecto) {
+  localStorage.removeItem(_PRE + 'historial_' + idProyecto);
+  if (!_db) return;
+  _db.collection(_FS_COL).doc(idProyecto).collection('historial').get()
+    .then(function(snap) {
+      if (snap.empty) return;
+      const batch = _db.batch();
+      snap.forEach(function(doc) { batch.delete(doc.ref); });
+      return batch.commit();
+    })
+    .catch(function(err) {
+      console.warn('[COA] Error borrando historial semanal en Firebase:', err.message);
+    });
+}
+
 // ── Matrices de terminaciones (estado actual) ────────────────────────────────
 
 function datos_guardarMatrices(idProyecto, matrices) {

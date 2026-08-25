@@ -1,7 +1,7 @@
 // Service Worker — COA prueba de terreno
 // La versión del caché se alinea con la versión de la app (ver index.html).
 // Al cambiar este número, el SW se reinstala y vuelve a cachear los archivos.
-const CACHE = 'coa-v4.66';
+const CACHE = 'coa-v4.67';
 const ARCHIVOS = [
   './',
   './index.html',

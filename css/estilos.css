@@ -716,7 +716,10 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .proy-nav-grupo.abierto .proy-nav-subitems { display: flex; }
 
 .proy-nav-sub {
-  padding: .45rem .7rem; font-size: .8rem; color: var(--texto-2);
+  /* Negrita fija (no solo en .activo) — para que "Consolidado"/"Registro avance"
+     no se pierdan visualmente cuando el submenú de fases se abre debajo (mismo
+     color de fondo que la barra lateral, pedido de María Paz). */
+  padding: .45rem .7rem; font-size: .8rem; color: var(--texto-2); font-weight: 600;
   border-left: 2px solid var(--borde); border-radius: 0 var(--radio-sm) var(--radio-sm) 0;
 }
 .proy-nav-sub:hover:not(:disabled) { color: var(--acento); border-color: var(--acento); }
