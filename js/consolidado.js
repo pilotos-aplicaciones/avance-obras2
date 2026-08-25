@@ -44,13 +44,22 @@ function consolidado_construirSnapshotSemana(config, matricesActuales, historial
     const faseKey = 'fase_' + faseEfectiva;
     const deptosOk = logica_deptosTerminadosActividad(matricesActuales, faseKey, numero, deptosTodos);
     const pct      = logica_avanceActividad(matricesActuales, faseKey, numero, deptosTodos);
+    // Piso aproximado también por actividad (no solo por fase) — pedido de
+    // María Paz para el Excel de historial. Misma fórmula "llenar de abajo
+    // hacia arriba" que ya se usa para la fase completa.
+    const piso     = (typeof logica_pisoActividad === 'function')
+      ? logica_pisoActividad(matricesActuales, faseKey, numero, deptosTodos, departamentos)
+      : 0;
     const prevDeptos = actsPrev[numero] ? actsPrev[numero].deptos : 0;
     const prevPct2   = actsPrev[numero] ? actsPrev[numero].avancePct : 0;
+    const prevPiso2  = actsPrev[numero] ? actsPrev[numero].piso : 0;
     actividades[numero] = {
       deptos:         deptosOk,
       avancePct:      pct,
+      piso:           piso,
       deptosSemanal:  deptosOk - prevDeptos,
       avancePctSemanal: parseFloat((pct - prevPct2).toFixed(1)),
+      pisoSemanal:      parseFloat((piso - prevPiso2).toFixed(2)),
     };
   });
 
@@ -85,7 +94,71 @@ function consolidado_cruzarSemanas(config, historial, programacion) {
     filas[fecha].real = real;
   });
 
-  return Object.values(filas).sort(function(a, b) { return (a.semana || '').localeCompare(b.semana || ''); });
+  let lista = Object.values(filas).sort(function(a, b) { return (a.semana || '').localeCompare(b.semana || ''); });
+  lista = _consolidado_recortarInicioReal(lista, config);
+  return lista;
+}
+
+// El "piso aproximado" cuenta como ya terminados los pisos sin departamentos
+// (por eso nunca es realmente 0 aunque no se haya avanzado nada) — sin este
+// recorte, el Consolidado/Gráficos mostraban ese piso base como si la fase ya
+// estuviera avanzando desde la primera semana guardada. Pedido de María Paz:
+// (1) no mostrar nada de una fase antes de que tenga avance real (%>0), y
+// (2) en la semana JUSTO ANTERIOR a la primera con avance real, dejar el piso
+// base (constante hasta que arranca el avance real), para que la curva
+// "parta" visualmente desde ahí. Si esa semana anterior no existe como fila
+// (caso raro: la primera semana de toda la obra ya trae avance real), se
+// inventa una fila extra una semana antes, solo para poder mostrar esa base.
+function _consolidado_recortarInicioReal(lista, config) {
+  const fasesTodas = (typeof logica_fasesEfectivas === 'function') ? logica_fasesEfectivas(config) : [1, 2, 3, 4, 5, 6];
+  const departamentos = config.departamentos || [];
+
+  fasesTodas.forEach(function(fase) {
+    let idxInicio = -1;
+    for (let i = 0; i < lista.length; i++) {
+      const r = lista[i].real && lista[i].real[fase];
+      if (r && r.pct > 0) { idxInicio = i; break; }
+    }
+
+    if (idxInicio === -1) {
+      // Nunca ha empezado el avance real de esta fase: no mostrar nada de ella.
+      lista.forEach(function(fila) { if (fila.real) delete fila.real[fase]; });
+      return;
+    }
+
+    // Quitar cualquier dato real de semanas ANTERIORES a la semana base
+    // (podían existir por guardados donde otra fase sí tuvo avance esa semana).
+    for (let i = 0; i < idxInicio - 1; i++) {
+      if (lista[i].real) delete lista[i].real[fase];
+    }
+
+    const pisoBase = (typeof logica_pisoAproximado === 'function') ? logica_pisoAproximado(0, departamentos) : 0;
+
+    if (idxInicio > 0) {
+      const filaAnterior = lista[idxInicio - 1];
+      filaAnterior.real = filaAnterior.real || {};
+      filaAnterior.real[fase] = { pct: 0, piso: pisoBase };
+    } else {
+      // No hay ninguna fila anterior — se inventa una, una semana antes,
+      // solo para mostrar el piso base (María Paz: "solo en caso de que sea
+      // necesario").
+      const semanaBase = _consolidado_semanaAnterior(lista[idxInicio].semana);
+      const filaNueva = { semana: semanaBase, fechaInicio: null, fechaTermino: null, prog: {}, real: {}, inventada: true };
+      filaNueva.real[fase] = { pct: 0, piso: pisoBase };
+      lista.unshift(filaNueva);
+      lista.sort(function(a, b) { return (a.semana || '').localeCompare(b.semana || ''); });
+    }
+  });
+
+  return lista;
+}
+
+// Una semana (7 días) antes de una fecha YYYY-MM-DD — para inventar la fila
+// "base" cuando no existe ninguna semana anterior real en la tabla.
+function _consolidado_semanaAnterior(fechaISO) {
+  const d = new Date(fechaISO + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 7);
+  return d.toISOString().slice(0, 10);
 }
 
 // ── Series para el gráfico (una por fase, programado + real) ─────────────────
@@ -245,25 +318,27 @@ function consolidado_exportarHistorialExcel(idProyecto) {
 
   const fasesActivas = (typeof logica_fasesEfectivas === 'function') ? logica_fasesEfectivas(config) : [1, 2, 3, 4, 5, 6];
 
-  const filasFase = [['Semana', 'Fase', '% Avance acumulado', 'Piso acumulado', '% Avance de la semana', 'Piso de la semana']];
+  // Columnas agrupadas por tipo (%, luego Piso, luego Deptos) — no
+  // intercaladas — pedido de María Paz.
+  const filasFase = [['Semana', 'Fase', '% Avance acumulado', '% Avance de la semana', 'Piso acumulado', 'Piso de la semana']];
   semanas.forEach(function(sem) {
     const snap = historial[sem];
     fasesActivas.forEach(function(f) {
       const d = snap.fases && snap.fases[f];
       if (!d) return;
       const nombreFase = NOMBRES_FASES[f].split('–')[0].trim();
-      filasFase.push([sem, nombreFase, d.avancePct, d.piso, d.avancePctSemanal, d.pisoSemanal]);
+      filasFase.push([sem, nombreFase, d.avancePct, d.avancePctSemanal, d.piso, d.pisoSemanal]);
     });
   });
 
-  const filasAct = [['Semana', 'Actividad', 'Deptos terminados (acumulado)', '% Avance acumulado', 'Deptos de la semana', '% Avance de la semana']];
+  const filasAct = [['Semana', 'Actividad', '% Avance acumulado', '% Avance de la semana', 'Piso acumulado', 'Piso de la semana', 'Deptos terminados (acumulado)', 'Deptos de la semana']];
   semanas.forEach(function(sem) {
     const snap = historial[sem];
     const numeros = Object.keys(snap.actividades || {}).map(Number).sort(function(a, b) { return a - b; });
     numeros.forEach(function(numero) {
       const d = snap.actividades[numero];
       const nombre = (typeof actividades_getNombreProyecto === 'function') ? actividades_getNombreProyecto(config, numero) : ('Actividad ' + numero);
-      filasAct.push([sem, numero + ' - ' + nombre, d.deptos, d.avancePct, d.deptosSemanal, d.avancePctSemanal]);
+      filasAct.push([sem, numero + ' - ' + nombre, d.avancePct, d.avancePctSemanal, d.piso, d.pisoSemanal, d.deptos, d.deptosSemanal]);
     });
   });
 

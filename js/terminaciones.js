@@ -1390,23 +1390,48 @@ function _mat_registrarEventos() {
   // ── Guardar avances → confirmación → Firebase ───────────────────────────────
   document.getElementById('mat-btn-guardar-avances')?.addEventListener('click', () => {
     if (_mat_soloLectura) return; // PILOTO: solo lectura, no se puede guardar
-    interfaz_mostrarModal(
-      'Guardar avances',
-      '¿Confirmas el guardado de los avances? Los datos se sincronizarán con todos los dispositivos.',
-      () => {
-        datos_subirAhora(_mat_id);
-        _mat_exportarJSONSilencioso(); // respaldo automático silencioso
-        window._coa_guardadoPendiente = false;
-        // Quitar estilo pendiente del botón
-        const btn = document.getElementById('mat-btn-guardar-avances');
-        if (btn) btn.classList.remove('mat-btn-pendiente');
-        if (datos_estaOnline()) {
-          interfaz_mostrarToast('Avances guardados correctamente', 'exito');
-        } else {
-          interfaz_mostrarToast('Avances guardados en este dispositivo. Se sincronizarán cuando vuelva la conexión.', 'aviso', 5000);
+
+    const _mat_confirmarGuardado = () => {
+      interfaz_mostrarModal(
+        'Guardar avances',
+        '¿Confirmas el guardado de los avances? Los datos se sincronizarán con todos los dispositivos.',
+        () => {
+          datos_subirAhora(_mat_id);
+          _mat_exportarJSONSilencioso(); // respaldo automático silencioso
+          window._coa_guardadoPendiente = false;
+          // Quitar estilo pendiente del botón
+          const btn = document.getElementById('mat-btn-guardar-avances');
+          if (btn) btn.classList.remove('mat-btn-pendiente');
+          if (datos_estaOnline()) {
+            interfaz_mostrarToast('Avances guardados correctamente', 'exito');
+          } else {
+            interfaz_mostrarToast('Avances guardados en este dispositivo. Se sincronizarán cuando vuelva la conexión.', 'aviso', 5000);
+          }
         }
-      }
-    );
+      );
+    };
+
+    // Si el viernes elegido ahora mismo YA tiene una semana guardada,
+    // avisar antes de seguir — si no, guardar de nuevo la reemplaza sin más
+    // aviso (María Paz: "si presiono guardar más de una vez en la misma
+    // semana, se considera el último — necesito saber cuándo estoy
+    // guardando encima de algo que ya guardé").
+    const semanaCtrl = (typeof datos_cargarSemanaControl === 'function') ? datos_cargarSemanaControl(_mat_id) : null;
+    const semana     = semanaCtrl && semanaCtrl.semana;
+    const historial  = (typeof datos_obtenerHistorial === 'function') ? datos_obtenerHistorial(_mat_id) : {};
+    if (semana && historial && historial[semana]) {
+      const fechaTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(semana) : semana;
+      interfaz_mostrarModal(
+        'Ya guardaste esta semana',
+        'La semana del ' + fechaTxt + ' ya tiene avances guardados. Si guardas ahora, se reemplazan por los de hoy.\n' +
+        '¿Es la semana que quieres actualizar?\n' +
+        'Si: presiona confirmar\n' +
+        'No: presiona cancelar y actualiza el viernes antes de guardar.',
+        _mat_confirmarGuardado
+      );
+    } else {
+      _mat_confirmarGuardado();
+    }
   });
 
   // ── Cargar JSON ─────────────────────────────────────────────────────────────
