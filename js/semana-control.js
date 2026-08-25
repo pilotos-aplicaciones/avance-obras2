@@ -184,14 +184,26 @@ function _sc_registrarEventos() {
     }
     const abrir = dd.style.display === 'none';
     dd.style.display = abrir ? 'block' : 'none';
-    // En sidebar de escritorio (overflow-x:hidden), usar position:fixed
-    // calculado desde el bounding rect del botón para no quedar recortado.
-    if (abrir && btn.closest('.mat-sidebar')) {
+    // El calendario (min-width 260px) vive siempre dentro de la barra lateral
+    // principal (.proy-nav, 220px de ancho) — más angosta que el propio
+    // calendario. Con su position:absolute normal, el borde derecho (columna
+    // "Do" y la flecha "›" de mes siguiente) queda recortado por el overflow
+    // de la barra. Se calcula su posición real (bounding rect del botón) y se
+    // dibuja con position:fixed, así queda "flotando" fuera de la barra en
+    // vez de recortado por ella (antes esto solo se hacía dentro de
+    // .mat-sidebar, de cuando el selector vivía ahí — ya no aplica).
+    if (abrir) {
       const rect = btn.getBoundingClientRect();
       dd.style.position = 'fixed';
       dd.style.top      = (rect.bottom + 4) + 'px';
       dd.style.left     = rect.left + 'px';
       dd.style.right    = 'auto';
+      // Si no entra a la derecha (pantallas angostas), se ancla contra el
+      // borde derecho de la ventana en vez de quedar cortado igual.
+      const anchoDropdown = 280; // min-width 260px + padding
+      if (rect.left + anchoDropdown > window.innerWidth) {
+        dd.style.left = Math.max(4, window.innerWidth - anchoDropdown - 4) + 'px';
+      }
     }
   });
 
