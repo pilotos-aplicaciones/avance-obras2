@@ -787,6 +787,39 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .cons-fila-actual td { background: #FFF3B0; }
 .cons-fila-actual .cons-prog { color: var(--texto); }
 
+/* ── Consolidado Obra Gruesa ──────────────────────────────────────────────── */
+/* Columnas Semanal/Acumulado destacadas con el mismo color de su grupo —
+   azul en Programado, verde en Real — igual tono que usan los encabezados
+   (.grp-prog/.grp-real), no uno más oscuro. Solo el FONDO lleva color: el
+   texto se queda negro, igual que el resto de la tabla. */
+.grp-prog { background: #EAF1FB; }
+.grp-real { background: #EDF4EF; }
+.prog-destacada { background: #EAF1FB; }
+.real-destacada { background: #EDF4EF; }
+.cons-fila-actual .prog-destacada,
+.cons-fila-actual .real-destacada { background: #FFF3B0; }
+
+.og-toolbar { display: flex; justify-content: flex-end; margin-bottom: .75rem; flex-shrink: 0; }
+.og-celda-real { background: var(--fondo-card); }
+.og-input {
+  width: 100%; min-width: 64px; border: none; background: transparent; text-align: center;
+  font-family: var(--font); font-size: .82rem; color: var(--texto); padding: .2rem;
+}
+.og-input:focus { outline: 2px solid var(--acento); outline-offset: -1px; background: var(--acento-suave); }
+
+/* ── Piso OG ──────────────────────────────────────────────────────────────── */
+.tabla-piso-og { border-collapse: collapse; font-size: .88rem; min-width: 280px; }
+.tabla-piso-og th, .tabla-piso-og td { border: 1px solid var(--borde-suave); padding: .5rem .9rem; text-align: center; }
+.tabla-piso-og thead th { background: var(--fondo-alt); font-weight: 700; }
+.piso-og-nivel { text-align: left; font-weight: 600; }
+.piso-og-fecha-btn {
+  background: none; border: 1px solid var(--borde); border-radius: var(--radio-sm);
+  padding: .35rem .7rem; font-family: var(--mono); font-size: .82rem; color: var(--texto); cursor: pointer;
+}
+.piso-og-fecha-btn:hover { background: var(--fondo-alt); }
+.piso-og-hecho { color: var(--exito); font-weight: 600; }
+.piso-og-pendiente { color: var(--texto-3); }
+
 /* ── Gráficos ─────────────────────────────────────────────── */
 /* Sin título/descripción arriba. Leyenda ABAJO del gráfico, pegada (antes
    iba arriba). El ancho real del <svg> lo mide graficos.js en vivo contra
@@ -797,6 +830,13 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
    leyenda queda pegada justo debajo (sin el hueco que dejaba poner
    flex:1 directo en .graf-svg-wrap, que estiraba el svg-wrap a ocupar
    todo el alto del panel aunque el gráfico fuera más chico). */
+/* Dos gráficos en la misma pestaña (Obra Gruesa arriba, Terminaciones abajo,
+   pedido de María Paz) — el contenedor exterior scrollea el conjunto; cada
+   bloque se ve completo, sin competir por la mitad del alto del panel. */
+.graf-paneles { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2rem; }
+.graf-paneles .graf-contenedor { flex: none; overflow: visible; }
+.graf-bloque-titulo { font-weight: 700; font-size: .85rem; margin-bottom: .5rem; }
+
 .graf-contenedor { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
 .graf-svg-wrap { flex-shrink: 0; }
 .graf-leyenda { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .78rem; color: var(--texto-2); flex-shrink: 0; }

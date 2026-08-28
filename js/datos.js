@@ -343,6 +343,130 @@ function datos_borrarHistorial(idProyecto) {
     });
 }
 
+// ── Historial semanal de Obra Gruesa (real: m³ por ítem) ─────────────────────
+// Independiente del historial de Terminaciones (colección aparte, se edita
+// distinto: acá se cargan los m³ reales directo en la tabla de Consolidado
+// Obra Gruesa, con copiar/pegar, no a través de "Guardar avances" con un
+// viernes seleccionado). Cada entrada: { fundaciones, subterraneo, placa,
+// nucleo, avanceSemanal, avanceAcumulado } — los dos últimos siempre
+// recalculados por la app, nunca escritos a mano.
+function _datos_historialOGLocal(idProyecto) {
+  const raw = localStorage.getItem(_PRE + 'historialOG_' + idProyecto);
+  return raw ? JSON.parse(raw) : {};
+}
+
+function datos_obtenerHistorialOG(idProyecto) {
+  return _datos_historialOGLocal(idProyecto);
+}
+
+// Trae el historial OG de Firestore y lo fusiona con el local (gana Firestore
+// en caso de choque) — mismo patrón que datos_sincronizarHistorial.
+function datos_sincronizarHistorialOG(idProyecto, cb) {
+  if (!_db) { cb(_datos_historialOGLocal(idProyecto)); return; }
+  _db.collection(_FS_COL).doc(idProyecto).collection('historialOG').get()
+    .then(function(snap) {
+      const historial = _datos_historialOGLocal(idProyecto);
+      snap.forEach(function(doc) { historial[doc.id] = doc.data(); });
+      localStorage.setItem(_PRE + 'historialOG_' + idProyecto, JSON.stringify(historial));
+      cb(historial);
+    })
+    .catch(function(err) {
+      console.warn('[COA] Error sincronizando historial de Obra Gruesa:', err.message);
+      cb(_datos_historialOGLocal(idProyecto));
+    });
+}
+
+// Aplica ediciones (una o varias semanas a la vez — pegado tipo Excel) a los
+// 4 ítems reales de Obra Gruesa. Recalcula avanceSemanal/avanceAcumulado de
+// TODAS las semanas desde la más antigua editada en adelante (una edición a
+// mitad del historial corre el acumulado de las semanas siguientes). Guarda
+// solo en local — no sube a Firebase (para eso, datos_guardarHistorialOG).
+// cambios: { 'YYYY-MM-DD': { fundaciones, subterraneo, placa, nucleo } }
+function datos_aplicarCambiosOG(idProyecto, cambios) {
+  if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(idProyecto)) return false;
+  const historial = _datos_historialOGLocal(idProyecto);
+
+  Object.keys(cambios).forEach(function(fecha) {
+    const actual = historial[fecha] || {};
+    const nuevo = cambios[fecha];
+    historial[fecha] = {
+      fundaciones:  ('fundaciones'  in nuevo) ? nuevo.fundaciones  : (actual.fundaciones  || 0),
+      subterraneo:  ('subterraneo'  in nuevo) ? nuevo.subterraneo  : (actual.subterraneo  || 0),
+      placa:        ('placa'        in nuevo) ? nuevo.placa        : (actual.placa        || 0),
+      nucleo:       ('nucleo'       in nuevo) ? nuevo.nucleo       : (actual.nucleo       || 0),
+    };
+  });
+
+  // Recalcular semanal/acumulado en orden cronológico para TODO el historial
+  // (barato: son pocas semanas por obra) — así una edición retroactiva nunca
+  // deja el acumulado de semanas posteriores desactualizado.
+  const fechas = Object.keys(historial).sort();
+  let acumPrevio = 0;
+  fechas.forEach(function(f) {
+    const h = historial[f];
+    const semanal = (h.fundaciones || 0) + (h.subterraneo || 0) + (h.placa || 0) + (h.nucleo || 0);
+    h.avanceSemanal   = parseFloat(semanal.toFixed(2));
+    acumPrevio        = parseFloat((acumPrevio + semanal).toFixed(2));
+    h.avanceAcumulado = acumPrevio;
+  });
+
+  localStorage.setItem(_PRE + 'historialOG_' + idProyecto, JSON.stringify(historial));
+  return true;
+}
+
+// Sube a Firestore todo el historial OG local (un documento por semana) —
+// el paso explícito de "Guardar" (local-first: las ediciones ya quedaron
+// guardadas en este dispositivo con datos_aplicarCambiosOG; esto sincroniza
+// con los demás dispositivos).
+function datos_guardarHistorialOG(idProyecto) {
+  if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(idProyecto)) {
+    if (typeof interfaz_mostrarToast === 'function') {
+      interfaz_mostrarToast('Solo lectura: no eres el responsable de esta obra.', 'aviso', 4000);
+    }
+    return;
+  }
+  if (!datos_estaOnline()) {
+    if (typeof interfaz_mostrarToast === 'function') {
+      interfaz_mostrarToast('Sin conexión — los cambios quedaron guardados en este dispositivo y se subirán cuando vuelva internet.', 'aviso', 5000);
+    }
+    return;
+  }
+  if (!_db) return;
+  const historial = _datos_historialOGLocal(idProyecto);
+  const fechas = Object.keys(historial);
+  if (!fechas.length) return;
+  const batch = _db.batch();
+  fechas.forEach(function(f) {
+    const ref = _db.collection(_FS_COL).doc(idProyecto).collection('historialOG').doc(f);
+    batch.set(ref, historial[f]);
+  });
+  batch.commit()
+    .then(function() {
+      if (typeof interfaz_mostrarToast === 'function') interfaz_mostrarToast('Avances de Obra Gruesa guardados correctamente.', 'exito');
+    })
+    .catch(function(err) {
+      console.warn('[COA] Error subiendo historial de Obra Gruesa:', err.message);
+      if (typeof interfaz_mostrarToast === 'function') interfaz_mostrarToast('No se pudo subir a la nube — quedó guardado en este dispositivo, reintenta más tarde.', 'aviso', 5500);
+    });
+}
+
+// ── Piso OG (nivel + fecha de término real) ──────────────────────────────────
+// Lista chica (una fila por nivel del edificio) — se guarda directo en la
+// configuración del proyecto, no como historial semanal.
+function datos_guardarPisoOG(idProyecto, pisoOG) {
+  if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(idProyecto)) {
+    if (typeof interfaz_mostrarToast === 'function') {
+      interfaz_mostrarToast('Solo lectura: no eres el responsable de esta obra.', 'aviso', 4000);
+    }
+    return false;
+  }
+  const config = datos_cargarProyecto(idProyecto);
+  if (!config) return false;
+  config.pisoOG = pisoOG;
+  _datos_escribirProyecto(config);
+  return true;
+}
+
 // ── Matrices de terminaciones (estado actual) ────────────────────────────────
 
 function datos_guardarMatrices(idProyecto, matrices) {

@@ -359,3 +359,223 @@ function consolidado_exportarHistorialExcel(idProyecto) {
 
   interfaz_mostrarToast('Historial exportado.', 'exito');
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBRA GRUESA — Consolidado (programado vs real, m³) y su gráfico
+// ══════════════════════════════════════════════════════════════════════════
+// Mismo espíritu que el Consolidado de Terminaciones (lee programación +
+// historial y los cruza), pero acá el real NO se llena por un "Registro
+// avance" aparte: se edita directo en esta misma tabla (m³ de Fundaciones /
+// Subterráneo / Placa / Núcleo por semana), con copiar/pegar tipo Excel —
+// pedido de María Paz. Avance Semanal/Acumulado (real) siempre calculados
+// por la app (nunca a mano) — ver datos_aplicarCambiosOG.
+
+// Cruce programado (config.programacionOG) vs real (historialOG), una fila
+// por semana. Devuelve también, por fila, la Desviación Acumulada:
+// Real acumulado − Programado acumulado esa semana. Regla de María Paz: una
+// vez que el real acumulado alcanza el total programado FINAL (la obra ya
+// completó esa cantidad de m³, aunque la programación siga mostrando
+// semanas futuras), la desviación queda en 0 de ahí en adelante — no tiene
+// sentido seguir mostrando una desviación cuando ya no queda nada por hacer.
+function og_cruzarSemanas(programacionOG, historialOG) {
+  programacionOG = programacionOG || [];
+  historialOG    = historialOG || {};
+
+  const filas = {};
+  programacionOG.forEach(function(p) {
+    const key = p.fechaTermino;
+    if (!key) return;
+    filas[key] = filas[key] || { semana: key, fechaInicio: p.fechaInicio, fechaTermino: p.fechaTermino, prog: null, real: null };
+    filas[key].prog = {
+      fundaciones: p.fundaciones, subterraneo: p.subterraneo, placa: p.placa, nucleo: p.nucleo,
+      avanceSemanal: p.avanceSemanal, avanceAcumulado: p.avanceAcumulado,
+    };
+  });
+  Object.keys(historialOG).forEach(function(fecha) {
+    filas[fecha] = filas[fecha] || { semana: fecha, fechaInicio: null, fechaTermino: fecha, prog: null, real: null };
+    filas[fecha].real = historialOG[fecha];
+  });
+
+  const lista = Object.values(filas).sort(function(a, b) { return (a.semana || '').localeCompare(b.semana || ''); });
+
+  // Total programado final = el mayor "Avance Acumulado" de toda la
+  // programación (no necesariamente la ÚLTIMA fila del Excel: se confirmó
+  // con el archivo real de María Paz que las últimas semanas suelen venir en
+  // blanco — el acumulado más alto sí está siempre bien calculado más atrás).
+  let totalProgFinal = null;
+  programacionOG.forEach(function(p) {
+    if (p.avanceAcumulado !== null && p.avanceAcumulado !== undefined) {
+      totalProgFinal = (totalProgFinal === null) ? p.avanceAcumulado : Math.max(totalProgFinal, p.avanceAcumulado);
+    }
+  });
+
+  lista.forEach(function(fila) {
+    const realAcum = fila.real ? fila.real.avanceAcumulado : null;
+    const progAcum = fila.prog ? fila.prog.avanceAcumulado : null;
+    if (realAcum === null || realAcum === undefined) {
+      fila.desviacionAcumulada = null; // sin real todavía esa semana — "—"
+    } else if (totalProgFinal !== null && realAcum >= totalProgFinal) {
+      fila.desviacionAcumulada = 0; // obra (esta partida) ya completa — sin desviación posible
+    } else if (progAcum === null || progAcum === undefined) {
+      fila.desviacionAcumulada = null; // no hay programación esa semana para comparar
+    } else {
+      fila.desviacionAcumulada = parseFloat((realAcum - progAcum).toFixed(2));
+    }
+  });
+
+  return lista;
+}
+
+// ── Vista "Consolidado Obra Gruesa" — tabla editable ─────────────────────────
+let _ogCons_anclaInput = null;
+
+function ogCons_inicializar(idProyecto) {
+  const panel = document.getElementById('panel-tab-consolidado-og');
+  if (!panel) return;
+  panel.innerHTML = '<div class="proy-nav-placeholder">Cargando…</div>';
+
+  const config = datos_cargarProyecto(idProyecto);
+  if (!config) { panel.innerHTML = '<div class="proy-nav-placeholder">No se encontró el proyecto.</div>'; return; }
+
+  datos_sincronizarHistorialOG(idProyecto, function(historialOG) {
+    _ogCons_render(panel, config, historialOG);
+  });
+}
+
+function _ogCons_render(panel, config, historialOG) {
+  const programacionOG = config.programacionOG || [];
+  const filas = og_cruzarSemanas(programacionOG, historialOG);
+  const puedeEditar = (typeof authp_puedeEditar === 'function') ? authp_puedeEditar(config.id) : true;
+
+  if (!programacionOG.length && !filas.length) {
+    panel.innerHTML = `
+      <div class="proy-nav-placeholder">
+        Todavía no hay datos para mostrar.<br>
+        <span class="cf-hint">Carga la programación en "⚙ Configurar" (Paso 4) — la hoja "Obra Gruesa" del mismo Excel de planificación.</span>
+      </div>`;
+    return;
+  }
+
+  const viernesSeleccionado = (typeof _consTerm_viernesSeleccionado === 'function') ? _consTerm_viernesSeleccionado(config.id) : null;
+
+  const filasHtml = filas.map(function(fila, i) {
+    const p = fila.prog;
+    const r = fila.real;
+    const val = function(campo) { return r && r[campo] !== undefined && r[campo] !== null ? r[campo] : ''; };
+    const inputCelda = function(campo) {
+      if (!puedeEditar) {
+        return `<td class="og-celda-real">${val(campo) !== '' ? interfaz_fmtNum(val(campo), 2) : '—'}</td>`;
+      }
+      return `<td class="og-celda-real"><input type="text" inputmode="decimal" class="og-input" data-fecha="${fila.semana}" data-campo="${campo}" data-fila="${i}" value="${val(campo)}"></td>`;
+    };
+    const pTxt = function(v) { return (v !== null && v !== undefined) ? interfaz_fmtNum(v, 1) : '—'; };
+    const desv = fila.desviacionAcumulada;
+    const desvTxt = (desv === null || desv === undefined) ? '—' : interfaz_fmtNum(desv, 1);
+    const desvClase = (desv === null || desv === undefined) ? '' : (desv >= 0 ? 'desv-pos' : 'desv-neg');
+    const esActual = viernesSeleccionado && fila.semana === viernesSeleccionado;
+
+    return `<tr${esActual ? ' class="cons-fila-actual"' : ''}>
+      <td class="cons-fecha">${fila.fechaInicio ? logica_formatearFecha(fila.fechaInicio) : '—'}</td>
+      <td class="cons-fecha">${fila.fechaTermino ? logica_formatearFecha(fila.fechaTermino) : '—'}</td>
+      <td>${pTxt(p && p.fundaciones)}</td><td>${pTxt(p && p.subterraneo)}</td><td>${pTxt(p && p.placa)}</td><td>${pTxt(p && p.nucleo)}</td>
+      <td class="prog-destacada">${pTxt(p && p.avanceSemanal)}</td><td class="prog-destacada">${pTxt(p && p.avanceAcumulado)}</td>
+      ${inputCelda('fundaciones')}${inputCelda('subterraneo')}${inputCelda('placa')}${inputCelda('nucleo')}
+      <td class="real-destacada">${pTxt(r && r.avanceSemanal)}</td><td class="real-destacada">${pTxt(r && r.avanceAcumulado)}</td>
+      <td class="${desvClase}">${desvTxt}</td>
+    </tr>`;
+  }).join('');
+
+  const btnGuardar = puedeEditar ? `<div class="og-toolbar"><button class="btn-primario" id="og-btn-guardar">💾 Guardar Obra Gruesa</button></div>` : '';
+
+  panel.innerHTML = `
+    ${btnGuardar}
+    <div class="cons-tabla-wrap">
+      <table class="tabla-consolidado tabla-og">
+        <thead>
+          <tr>
+            <th rowspan="2">Inicio</th><th rowspan="2">Término</th>
+            <th colspan="6" class="grp-prog">Programado (m³)</th>
+            <th colspan="6" class="grp-real">Real (m³)</th>
+            <th rowspan="2">Desv. Acum.</th>
+          </tr>
+          <tr>
+            <th class="grp-prog">Fund.</th><th class="grp-prog">Subterr.</th><th class="grp-prog">Placa</th><th class="grp-prog">Núcleo</th>
+            <th class="prog-destacada">Sem.</th><th class="prog-destacada">Acum.</th>
+            <th class="grp-real">Fund.</th><th class="grp-real">Subterr.</th><th class="grp-real">Placa</th><th class="grp-real">Núcleo</th>
+            <th class="real-destacada">Sem.</th><th class="real-destacada">Acum.</th>
+          </tr>
+        </thead>
+        <tbody>${filasHtml}</tbody>
+      </table>
+    </div>`;
+
+  _consTerm_aplicarSticky(panel);
+  if (puedeEditar) _ogCons_registrarEventos(panel, config.id, filas);
+}
+
+function _ogCons_registrarEventos(panel, idProyecto, filas) {
+  const inputs = Array.from(panel.querySelectorAll('.og-input'));
+
+  inputs.forEach(function(inp) {
+    inp.addEventListener('focus', function() { _ogCons_anclaInput = inp; });
+    inp.addEventListener('change', function() {
+      const cambios = {};
+      cambios[inp.dataset.fecha] = {};
+      cambios[inp.dataset.fecha][inp.dataset.campo] = _ogCons_parseNum(inp.value);
+      datos_aplicarCambiosOG(idProyecto, cambios);
+      ogCons_inicializar(idProyecto);
+    });
+    inp.addEventListener('paste', function(e) {
+      _ogCons_pasteHandler(e, inp, idProyecto, filas);
+    });
+  });
+
+  const btnGuardar = document.getElementById('og-btn-guardar');
+  if (btnGuardar) {
+    btnGuardar.addEventListener('click', function() {
+      interfaz_mostrarModal(
+        'Guardar Obra Gruesa',
+        '¿Confirmas subir los avances reales de Obra Gruesa? Se sincronizarán con todos los dispositivos.',
+        function() { datos_guardarHistorialOG(idProyecto); }
+      );
+    });
+  }
+}
+
+function _ogCons_parseNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseFloat(String(v).replace(',', '.').replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? 0 : Math.max(0, n);
+}
+
+// Pegado tipo Excel: la celda donde se hizo foco es el ancla, se pega en
+// bloque (filas = semanas siguientes en la tabla, columnas = Fundaciones,
+// Subterráneo, Placa, Núcleo, en ese orden) — mismo mecanismo que ya usa
+// Terminaciones (_mat_pasteHandler en terminaciones.js).
+const _OG_COLUMNAS = ['fundaciones', 'subterraneo', 'placa', 'nucleo'];
+
+function _ogCons_pasteHandler(e, inputAncla, idProyecto, filas) {
+  e.preventDefault();
+  const texto = (e.clipboardData || window.clipboardData).getData('text');
+  if (!texto) return;
+  const filasPaste = texto.trim().split(/\r?\n/).map(function(r) { return r.split('\t'); });
+
+  const filaAnclaIdx = parseInt(inputAncla.dataset.fila, 10);
+  const colAnclaIdx  = _OG_COLUMNAS.indexOf(inputAncla.dataset.campo);
+  if (isNaN(filaAnclaIdx) || colAnclaIdx === -1) return;
+
+  const cambios = {};
+  filasPaste.forEach(function(cols, dr) {
+    const fila = filas[filaAnclaIdx + dr];
+    if (!fila) return;
+    cambios[fila.semana] = cambios[fila.semana] || {};
+    cols.forEach(function(val, dc) {
+      const campo = _OG_COLUMNAS[colAnclaIdx + dc];
+      if (!campo) return;
+      cambios[fila.semana][campo] = _ogCons_parseNum(val);
+    });
+  });
+
+  datos_aplicarCambiosOG(idProyecto, cambios);
+  ogCons_inicializar(idProyecto);
+}

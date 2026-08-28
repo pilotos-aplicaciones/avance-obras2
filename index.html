@@ -25,7 +25,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name">Control de Avances</span>
-        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.71</span></span>
+        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.72</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -65,7 +65,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name" id="cf-titulo-nav">Nuevo Proyecto</span>
-        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.71</span></span>
+        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.72</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -154,7 +154,8 @@
       <div class="proy-nav-grupo" data-grupo="og">
         <button class="proy-nav-grupo-header"><span class="proy-nav-icono">🏗</span><span class="proy-nav-texto">Obra Gruesa</span> <span class="proy-nav-flecha">▶</span></button>
         <div class="proy-nav-subitems">
-          <button class="proy-nav-sub" data-tab="tab-consolidado-og" disabled>Consolidado <span class="proy-nav-prox">Próximamente</span></button>
+          <button class="proy-nav-sub" data-tab="tab-consolidado-og">Consolidado</button>
+          <button class="proy-nav-sub" data-tab="tab-piso-og">Piso OG</button>
         </div>
       </div>
 
@@ -180,9 +181,14 @@
         <!-- renderizado por graficos.js -->
       </div>
 
-      <!-- Tab: Obra Gruesa · Consolidado (pendiente) -->
+      <!-- Tab: Obra Gruesa · Consolidado -->
       <div id="panel-tab-consolidado-og" class="panel-tab" style="display:none">
-        <div class="proy-nav-placeholder">🏗 Obra Gruesa llega en una próxima etapa.</div>
+        <!-- renderizado por consolidado.js (ogCons_inicializar) -->
+      </div>
+
+      <!-- Tab: Obra Gruesa · Piso OG -->
+      <div id="panel-tab-piso-og" class="panel-tab" style="display:none">
+        <!-- renderizado por og.js (pisoOG_inicializar) -->
       </div>
 
       <!-- Tab: Avance Terminaciones -->
@@ -301,6 +307,8 @@
 <script src="js/semana-control.js"></script>
 <script src="js/config-proyecto.js"></script>
 <script src="js/terminaciones.js"></script>
+<!-- Obra Gruesa: pestaña "Piso OG" (usa og_cruzarSemanas/render de consolidado.js) -->
+<script src="js/og.js"></script>
 <script src="js/graficos.js"></script>
 <script src="js/revision.js"></script>
 

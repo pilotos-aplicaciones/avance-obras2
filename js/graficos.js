@@ -7,7 +7,7 @@
 // librerías externas: un solo <svg> armado a mano, igual que el resto de la
 // app.
 
-let _graf_ultimoPanel = null, _graf_ultimoConfig = null, _graf_ultimoHistorial = null;
+let _graf_ultimoPanel = null, _graf_ultimoConfig = null, _graf_ultimoHistorial = null, _graf_ultimoHistorialOG = null;
 
 function graficos_inicializar(idProyecto) {
   const panel = document.getElementById('panel-tab-graficos');
@@ -18,10 +18,13 @@ function graficos_inicializar(idProyecto) {
   if (!config) { panel.innerHTML = '<div class="proy-nav-placeholder">No se encontró el proyecto.</div>'; return; }
 
   datos_sincronizarHistorial(idProyecto, function(historial) {
-    _graf_ultimoPanel = panel;
-    _graf_ultimoConfig = config;
-    _graf_ultimoHistorial = historial;
-    _graf_render(panel, config, historial);
+    datos_sincronizarHistorialOG(idProyecto, function(historialOG) {
+      _graf_ultimoPanel = panel;
+      _graf_ultimoConfig = config;
+      _graf_ultimoHistorial = historial;
+      _graf_ultimoHistorialOG = historialOG;
+      _graf_render(panel, config, historial, historialOG);
+    });
   });
 
   // Re-dibujar al cambiar el ancho de ventana (el gráfico se ajusta al
@@ -33,7 +36,7 @@ function graficos_inicializar(idProyecto) {
       clearTimeout(t);
       t = setTimeout(function() {
         if (_graf_ultimoPanel && document.body.contains(_graf_ultimoPanel) && getComputedStyle(_graf_ultimoPanel).display !== 'none') {
-          _graf_render(_graf_ultimoPanel, _graf_ultimoConfig, _graf_ultimoHistorial);
+          _graf_render(_graf_ultimoPanel, _graf_ultimoConfig, _graf_ultimoHistorial, _graf_ultimoHistorialOG);
         }
       }, 200);
     });
@@ -41,18 +44,127 @@ function graficos_inicializar(idProyecto) {
   }
 }
 
-function _graf_render(panel, config, historial) {
+// Orden pedido por María Paz: primero Obra Gruesa, después Terminaciones.
+// Ambos bloques van dentro de un único contenedor que scrollea (.graf-paneles)
+// — cada gráfico se ve completo, uno debajo del otro, en vez de competir por
+// la mitad de la altura del panel.
+function _graf_render(panel, config, historial, historialOG) {
+  const htmlOG   = _graf_renderOG(panel, config, historialOG || {});
+  const htmlTerm = _graf_renderTerminaciones(panel, config, historial);
+  panel.innerHTML = `<div class="graf-paneles">${htmlOG}${htmlTerm}</div>`;
+}
+
+// ── Obra Gruesa: un solo color (negro, OG_COLOR.enc) — programado punteado,
+// real sólido, tal como pidió María Paz ("que se diferencien solo por línea
+// segmentada o continua, no por color"). Eje Y = m³ acumulados (no piso).
+function _graf_renderOG(panel, config, historialOG) {
+  const programacionOG = config.programacionOG || [];
+  const filas = (typeof og_cruzarSemanas === 'function') ? og_cruzarSemanas(programacionOG, historialOG) : [];
+
+  if (!filas.length) {
+    return `<div class="graf-bloque">
+      <div class="graf-bloque-titulo">🏗 Obra Gruesa</div>
+      <div class="proy-nav-placeholder">
+        Todavía no hay datos para graficar.<br>
+        <span class="cf-hint">Carga la programación en "⚙ Configurar" (Paso 4) — hoja "Obra Gruesa".</span>
+      </div>
+    </div>`;
+  }
+
+  let minY = 0, maxY = 1;
+  filas.forEach(function(fila) {
+    const p = fila.prog, r = fila.real;
+    if (p && p.avanceAcumulado !== null && p.avanceAcumulado !== undefined) maxY = Math.max(maxY, p.avanceAcumulado);
+    if (r && r.avanceAcumulado !== null && r.avanceAcumulado !== undefined) maxY = Math.max(maxY, r.avanceAcumulado);
+  });
+  const padY = (maxY - minY) * 0.08 || 1;
+  maxY += padY;
+
+  const n = filas.length;
+  const padL = 46, padR = 8, padT = 14;
+  const W = Math.max(320, (panel.clientWidth || 900) - 8);
+  const espacioPorSemana = n > 1 ? (W - padL - padR) / (n - 1) : (W - padL - padR);
+  let anguloX = 0;
+  if (espacioPorSemana < 55) anguloX = 55;
+  if (espacioPorSemana < 32) anguloX = 70;
+  if (espacioPorSemana < 18) anguloX = 85;
+  const padB = anguloX ? 58 : 30;
+  const H = 320;
+
+  const xAt = function(i) { return n <= 1 ? padL : padL + (i / (n - 1)) * (W - padL - padR); };
+  const yAt = function(v) { return padT + (1 - (v - minY) / (maxY - minY)) * (H - padT - padB); };
+
+  function polyline(getter) {
+    const pts = [];
+    filas.forEach(function(fila, i) {
+      const v = getter(fila);
+      if (v === null || v === undefined) return;
+      pts.push(xAt(i).toFixed(1) + ',' + yAt(v).toFixed(1));
+    });
+    return pts.join(' ');
+  }
+
+  const progPts = polyline(function(fila) { const p = fila.prog; return (p && p.avanceAcumulado !== null && p.avanceAcumulado !== undefined) ? p.avanceAcumulado : null; });
+  const realPts = polyline(function(fila) { const r = fila.real; return (r && r.avanceAcumulado !== null && r.avanceAcumulado !== undefined) ? r.avanceAcumulado : null; });
+  let svgLineas = '';
+  if (progPts) svgLineas += `<polyline points="${progPts}" fill="none" stroke="${OG_COLOR.enc}" stroke-width="2" stroke-dasharray="5,4"/>`;
+  if (realPts) svgLineas += `<polyline points="${realPts}" fill="none" stroke="${OG_COLOR.enc}" stroke-width="2.5"/>`;
+
+  let grillaXLineas = '', etiquetasX = '';
+  filas.forEach(function(fila, i) {
+    const x = xAt(i);
+    grillaXLineas += `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(H - padB).toFixed(1)}" stroke="#F2EEE7" stroke-width="1"/>`;
+    const yEtq = H - padB + (anguloX ? 10 : 14);
+    const transform = anguloX ? ` transform="rotate(-${anguloX} ${x.toFixed(1)} ${yEtq})"` : '';
+    const anchor = anguloX ? 'end' : 'middle';
+    etiquetasX += `<text x="${x.toFixed(1)}" y="${yEtq}" font-size="8.5" fill="#A09A93" text-anchor="${anchor}"${transform}>${logica_formatearFecha(fila.semana).slice(0, 5)}</text>`;
+  });
+
+  // Eje Y en m³ acumulados: 5 marcas repartidas en el rango (no piso a piso).
+  const pasos = 5;
+  let grillaYLineas = '', etiquetasY = '';
+  for (let i = 0; i <= pasos; i++) {
+    const v = minY + (maxY - minY) * (i / pasos);
+    const y = yAt(v);
+    grillaYLineas += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(W - padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#EFEBE4" stroke-width="1"/>`;
+    etiquetasY += `<text x="4" y="${(y + 3).toFixed(1)}" font-size="9" fill="#A09A93">${Math.round(v)}</text>`;
+  }
+
+  return `<div class="graf-bloque">
+    <div class="graf-bloque-titulo">🏗 Obra Gruesa</div>
+    <div class="graf-contenedor">
+      <div class="graf-svg-wrap">
+        <svg width="${W}" height="${H}" class="graf-svg" style="width:${W}px;">
+          ${grillaXLineas}
+          ${grillaYLineas}
+          <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(H - padB).toFixed(1)}" stroke="#E2DDD4"/>
+          <line x1="${padL}" y1="${(H - padB).toFixed(1)}" x2="${(W - padR).toFixed(1)}" y2="${(H - padB).toFixed(1)}" stroke="#E2DDD4"/>
+          ${svgLineas}
+          ${etiquetasX}
+          ${etiquetasY}
+        </svg>
+      </div>
+      <div class="graf-leyenda graf-leyenda-abajo">
+        <span class="graf-leyenda-item"><i class="graf-linea-muestra" style="border-top-color:${OG_COLOR.enc}"></i>Real</span>
+        <span class="graf-leyenda-item"><i class="graf-linea-muestra graf-punteada" style="border-top-color:${OG_COLOR.enc}"></i>Programado</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _graf_renderTerminaciones(panel, config, historial) {
   const programacion = config.programacion || [];
   const filas = (typeof consolidado_cruzarSemanas === 'function') ? consolidado_cruzarSemanas(config, historial, programacion) : [];
   const fases = (typeof logica_fasesEfectivas === 'function') ? logica_fasesEfectivas(config) : [1, 2, 3, 4, 5, 6];
 
   if (!filas.length) {
-    panel.innerHTML = `
+    return `<div class="graf-bloque">
+      <div class="graf-bloque-titulo">🎨 Terminaciones</div>
       <div class="proy-nav-placeholder">
         Todavía no hay datos para graficar.<br>
         <span class="cf-hint">Carga la programación en "⚙ Configurar" (Paso 4) y confirma al menos una semana de avances.</span>
-      </div>`;
-    return;
+      </div>
+    </div>`;
   }
 
   // Dominio del eje Y (piso aproximado) — puede ser negativo antes del inicio de obra gruesa.
@@ -142,7 +254,8 @@ function _graf_render(panel, config, historial) {
     return `<span class="graf-leyenda-item"><i class="graf-dot" style="background:${c.enc}"></i>${nombre}</span>`;
   }).join('');
 
-  panel.innerHTML = `
+  return `<div class="graf-bloque">
+    <div class="graf-bloque-titulo">🎨 Terminaciones</div>
     <div class="graf-contenedor">
       <div class="graf-svg-wrap">
         <svg width="${W}" height="${H}" class="graf-svg" style="width:${W}px;">
@@ -160,5 +273,6 @@ function _graf_render(panel, config, historial) {
         <span class="graf-leyenda-item"><i class="graf-linea-muestra"></i>Real</span>
         <span class="graf-leyenda-item"><i class="graf-linea-muestra graf-punteada"></i>Programado</span>
       </div>
-    </div>`;
+    </div>
+  </div>`;
 }
