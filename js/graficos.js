@@ -9,6 +9,30 @@
 
 let _graf_ultimoPanel = null, _graf_ultimoConfig = null, _graf_ultimoHistorial = null, _graf_ultimoHistorialOG = null;
 
+// Alto fijo compartido por los dos gráficos (Obra Gruesa y Terminaciones) —
+// pedido de María Paz: que los dos "rectángulos" se vean del mismo porte,
+// sin scroll interno. En vez de que el alto crezca con la cantidad de pisos
+// o de marcas del eje Y, es al revés: la separación entre líneas del eje Y
+// se acomoda para caber siempre en este mismo alto.
+const GRAF_ALTO = 380;
+
+// Elige un "paso" redondo (1/2/2.5/5 × 10^n) para el eje Y de Obra Gruesa,
+// apuntando a un número razonable de marcas (ni muy pocas — se ve pelado —
+// ni muchas — se amontonan). Mismo criterio que usan librerías de gráficos
+// para ejes con números "lindos" (250, 500, 1000, 2000...).
+function _graf_pasoNiceY(maxY, objetivoTicks) {
+  const bruto = Math.max(maxY, 1) / objetivoTicks;
+  const potencia = Math.pow(10, Math.floor(Math.log10(bruto)));
+  const norm = bruto / potencia;
+  let mult;
+  if (norm <= 1) mult = 1;
+  else if (norm <= 2) mult = 2;
+  else if (norm <= 2.5) mult = 2.5;
+  else if (norm <= 5) mult = 5;
+  else mult = 10;
+  return mult * potencia;
+}
+
 function graficos_inicializar(idProyecto) {
   const panel = document.getElementById('panel-tab-graficos');
   if (!panel) return;
@@ -78,12 +102,12 @@ function _graf_renderOG(panel, config, historialOG) {
     if (r && r.avanceAcumulado !== null && r.avanceAcumulado !== undefined) maxY = Math.max(maxY, r.avanceAcumulado);
   });
 
-  // Eje Y en marcas fijas de 250 m³ (pedido de María Paz — antes eran 5
-  // divisiones parejas del rango, lo que dejaba el gráfico "achatado"
-  // cuando el total era grande). El alto del SVG crece con la cantidad de
-  // marcas para que la curva no se comprima, mismo criterio que ya usa el
-  // gráfico de Terminaciones con sus pisos.
-  const STEP_Y = 250;
+  // Eje Y en marcas "redondas" (250/500/1000... según convenga) — el paso
+  // se calcula solo para que siempre queden entre 5 y 7 marcas más o menos,
+  // ni pocas (se ve pelado) ni muchas (se amontonan). El alto del gráfico es
+  // fijo (GRAF_ALTO, igual que Terminaciones) — lo que se ajusta es la
+  // separación entre líneas, no el tamaño del cuadro.
+  const STEP_Y = _graf_pasoNiceY(maxY, 6);
   let maxTickY = Math.ceil(maxY / STEP_Y) * STEP_Y;
   if (maxTickY <= maxY) maxTickY += STEP_Y; // deja un margen arriba de la curva más alta
   maxY = maxTickY;
@@ -98,8 +122,7 @@ function _graf_renderOG(panel, config, historialOG) {
   if (espacioPorSemana < 32) anguloX = 70;
   if (espacioPorSemana < 18) anguloX = 85;
   const padB = anguloX ? 58 : 30;
-  const PX_POR_MARCA_Y = 34;
-  const H = Math.max(320, padT + padB + numTicksY * PX_POR_MARCA_Y);
+  const H = GRAF_ALTO;
 
   const xAt = function(i) { return n <= 1 ? padL : padL + (i / (n - 1)) * (W - padL - padR); };
   const yAt = function(v) { return padT + (1 - (v - minY) / (maxY - minY)) * (H - padT - padB); };
@@ -205,14 +228,15 @@ function _graf_renderTerminaciones(panel, config, historial) {
   if (espacioPorSemana < 18) anguloX = 85;
   const padB = anguloX ? 58 : 30; // más alto abajo si las etiquetas quedan inclinadas
 
-  // Alto: una línea de grilla por piso (eje Y = piso), con separación mínima
-  // legible aunque el edificio tenga muchos pisos. Incluye el 0 si cae en el
+  // Una línea de grilla por piso (eje Y = piso). Incluye el 0 si cae en el
   // rango — es un valor válido de "piso aprox", no el piso 0 del edificio.
+  // Alto FIJO (GRAF_ALTO, igual que Obra Gruesa) — si el edificio tiene
+  // muchos pisos, la separación entre líneas se achica para caber, en vez
+  // de agrandar el cuadro (así los dos gráficos se ven del mismo porte).
   const primerPiso = Math.ceil(minY), ultimoPiso = Math.floor(maxY);
   const ticksY = [];
   for (let p = primerPiso; p <= ultimoPiso; p++) ticksY.push(p);
-  const PX_POR_PISO = 20;
-  const H = Math.max(380, padT + padB + Math.max(1, ticksY.length - 1) * PX_POR_PISO);
+  const H = GRAF_ALTO;
 
   const xAt = function(i) { return n <= 1 ? padL : padL + (i / (n - 1)) * (W - padL - padR); };
   const yAt = function(v) { return padT + (1 - (v - minY) / (maxY - minY)) * (H - padT - padB); };
