@@ -77,8 +77,17 @@ function _graf_renderOG(panel, config, historialOG) {
     if (p && p.avanceAcumulado !== null && p.avanceAcumulado !== undefined) maxY = Math.max(maxY, p.avanceAcumulado);
     if (r && r.avanceAcumulado !== null && r.avanceAcumulado !== undefined) maxY = Math.max(maxY, r.avanceAcumulado);
   });
-  const padY = (maxY - minY) * 0.08 || 1;
-  maxY += padY;
+
+  // Eje Y en marcas fijas de 250 m³ (pedido de María Paz — antes eran 5
+  // divisiones parejas del rango, lo que dejaba el gráfico "achatado"
+  // cuando el total era grande). El alto del SVG crece con la cantidad de
+  // marcas para que la curva no se comprima, mismo criterio que ya usa el
+  // gráfico de Terminaciones con sus pisos.
+  const STEP_Y = 250;
+  let maxTickY = Math.ceil(maxY / STEP_Y) * STEP_Y;
+  if (maxTickY <= maxY) maxTickY += STEP_Y; // deja un margen arriba de la curva más alta
+  maxY = maxTickY;
+  const numTicksY = maxY / STEP_Y;
 
   const n = filas.length;
   const padL = 46, padR = 8, padT = 14;
@@ -89,7 +98,8 @@ function _graf_renderOG(panel, config, historialOG) {
   if (espacioPorSemana < 32) anguloX = 70;
   if (espacioPorSemana < 18) anguloX = 85;
   const padB = anguloX ? 58 : 30;
-  const H = 320;
+  const PX_POR_MARCA_Y = 34;
+  const H = Math.max(320, padT + padB + numTicksY * PX_POR_MARCA_Y);
 
   const xAt = function(i) { return n <= 1 ? padL : padL + (i / (n - 1)) * (W - padL - padR); };
   const yAt = function(v) { return padT + (1 - (v - minY) / (maxY - minY)) * (H - padT - padB); };
@@ -120,11 +130,10 @@ function _graf_renderOG(panel, config, historialOG) {
     etiquetasX += `<text x="${x.toFixed(1)}" y="${yEtq}" font-size="8.5" fill="#A09A93" text-anchor="${anchor}"${transform}>${logica_formatearFecha(fila.semana).slice(0, 5)}</text>`;
   });
 
-  // Eje Y en m³ acumulados: 5 marcas repartidas en el rango (no piso a piso).
-  const pasos = 5;
+  // Eje Y en m³ acumulados: una marca cada 250 m³ (no piso a piso).
   let grillaYLineas = '', etiquetasY = '';
-  for (let i = 0; i <= pasos; i++) {
-    const v = minY + (maxY - minY) * (i / pasos);
+  for (let i = 0; i <= numTicksY; i++) {
+    const v = i * STEP_Y;
     const y = yAt(v);
     grillaYLineas += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(W - padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#EFEBE4" stroke-width="1"/>`;
     etiquetasY += `<text x="4" y="${(y + 3).toFixed(1)}" font-size="9" fill="#A09A93">${Math.round(v)}</text>`;

@@ -799,6 +799,12 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .cons-fila-actual .prog-destacada,
 .cons-fila-actual .real-destacada { background: #FFF3B0; }
 
+/* Columnas parejas — la tabla usa <colgroup> (15 columnas) para que
+   table-layout:fixed reparta el mismo ancho a todas, en vez del ancho
+   "a medida del contenido" que deja columnas dispares. */
+.tabla-og { table-layout: fixed; }
+.tabla-og col { width: 92px; }
+
 .og-toolbar { display: flex; justify-content: flex-end; margin-bottom: .75rem; flex-shrink: 0; }
 .og-celda-real { background: var(--fondo-card); }
 .og-input {
@@ -812,11 +818,20 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .tabla-piso-og th, .tabla-piso-og td { border: 1px solid var(--borde-suave); padding: .5rem .9rem; text-align: center; }
 .tabla-piso-og thead th { background: var(--fondo-alt); font-weight: 700; }
 .piso-og-nivel { text-align: left; font-weight: 600; }
-.piso-og-fecha-btn {
-  background: none; border: 1px solid var(--borde); border-radius: var(--radio-sm);
-  padding: .35rem .7rem; font-family: var(--mono); font-size: .82rem; color: var(--texto); cursor: pointer;
+
+/* Se puede escribir la fecha a mano O abrirla con el botón de calendario al
+   lado — ambas opciones llevan al mismo lugar. */
+.piso-og-fecha-wrap { display: flex; align-items: center; justify-content: center; gap: .35rem; }
+.piso-og-fecha-input {
+  width: 96px; border: 1px solid var(--borde); border-radius: var(--radio-sm); background: var(--fondo-card);
+  padding: .35rem .5rem; font-family: var(--mono); font-size: .82rem; color: var(--texto); text-align: center;
 }
-.piso-og-fecha-btn:hover { background: var(--fondo-alt); }
+.piso-og-fecha-input:focus { outline: 2px solid var(--acento); outline-offset: -1px; }
+.piso-og-cal-btn {
+  background: none; border: 1px solid var(--borde); border-radius: var(--radio-sm);
+  padding: .35rem .5rem; cursor: pointer; line-height: 1;
+}
+.piso-og-cal-btn:hover { background: var(--fondo-alt); }
 .piso-og-hecho { color: var(--exito); font-weight: 600; }
 .piso-og-pendiente { color: var(--texto-3); }
 
@@ -839,7 +854,7 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 
 .graf-contenedor { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
 .graf-svg-wrap { flex-shrink: 0; }
-.graf-leyenda { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .78rem; color: var(--texto-2); flex-shrink: 0; }
+.graf-leyenda { display: flex; justify-content: center; gap: .9rem; flex-wrap: wrap; font-size: .78rem; color: var(--texto-2); flex-shrink: 0; }
 .graf-leyenda-abajo { margin-top: .75rem; }
 .graf-leyenda-item { display: flex; align-items: center; gap: .35rem; }
 .graf-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -1486,6 +1501,12 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   cursor: pointer;
 }
 .sc-cal-viernes:hover { background: var(--acento); color: #fff; }
+
+/* Calendario de Piso OG: TODOS los días son clickeables (no solo viernes),
+   así que van en color neutro — solo el día seleccionado se destaca
+   (.sc-cal-sel), en vez de pintar cada día del mes en rojo/acento. */
+.pog-cal-dia { color: var(--texto); cursor: pointer; }
+.pog-cal-dia:hover { background: var(--fondo-alt); }
 
 .sc-cal-sel {
   background: var(--acento) !important;

@@ -58,12 +58,19 @@ function _pog_render(panel, config) {
   const filasHtml = filas.map(function(fila, i) {
     const txt = fila.fechaTermino ? logica_formatearFecha(fila.fechaTermino) : '—';
     const claseFecha = fila.fechaTermino ? 'piso-og-hecho' : 'piso-og-pendiente';
-    const boton = puedeEditar
-      ? `<button class="piso-og-fecha-btn" data-idx="${i}">${txt} <span style="color:var(--texto-3)">📅</span></button>`
+    // Editable: se puede escribir la fecha a mano (dd-mm-aaaa) o abrirla con
+    // el botón de calendario al lado — pedido de María Paz, ambas formas
+    // llevan al mismo lugar (_pog_guardarFecha).
+    const valorInput = fila.fechaTermino ? logica_formatearFecha(fila.fechaTermino).replace(/\//g, '-') : '';
+    const celda = puedeEditar
+      ? `<div class="piso-og-fecha-wrap">
+           <input type="text" inputmode="numeric" class="piso-og-fecha-input" data-idx="${i}" value="${valorInput}" placeholder="dd-mm-aaaa">
+           <button class="piso-og-cal-btn" data-idx="${i}" title="Elegir en calendario">📅</button>
+         </div>`
       : `<span class="${claseFecha}">${txt}</span>`;
     return `<tr>
       <td class="piso-og-nivel">${fila.nivel}</td>
-      <td class="piso-og-fecha-celda" data-idx="${i}">${boton}</td>
+      <td class="piso-og-fecha-celda" data-idx="${i}">${celda}</td>
     </tr>`;
   }).join('');
 
@@ -79,13 +86,40 @@ function _pog_render(panel, config) {
 }
 
 function _pog_registrarEventos(panel, config) {
-  panel.querySelectorAll('.piso-og-fecha-btn').forEach(function(btn) {
+  panel.querySelectorAll('.piso-og-cal-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.idx, 10);
       _pog_abrirCalendario(idx, btn, config);
     });
   });
+
+  panel.querySelectorAll('.piso-og-fecha-input').forEach(function(inp) {
+    inp.addEventListener('change', function() {
+      const idx = parseInt(inp.dataset.idx, 10);
+      const texto = inp.value.trim();
+      if (texto === '') { _pog_guardarFecha(idx, config, null); return; }
+      const iso = _pog_parseFechaTexto(texto);
+      if (!iso) {
+        if (typeof interfaz_mostrarToast === 'function') interfaz_mostrarToast('Fecha no válida — usa el formato dd-mm-aaaa', 'error');
+        const filas = _pog_filasCombinadas(config);
+        inp.value = filas[idx].fechaTermino ? logica_formatearFecha(filas[idx].fechaTermino).replace(/\//g, '-') : '';
+        return;
+      }
+      _pog_guardarFecha(idx, config, iso);
+    });
+  });
+}
+
+// Acepta dd-mm-aaaa o dd/mm/aaaa escrito a mano; valida que sea una fecha
+// real (rechaza p.ej. 31-02-2026) antes de guardarla.
+function _pog_parseFechaTexto(v) {
+  const m = String(v).trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (!m) return null;
+  const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), y = parseInt(m[3], 10);
+  const fecha = new Date(y, mo - 1, d);
+  if (fecha.getFullYear() !== y || fecha.getMonth() !== mo - 1 || fecha.getDate() !== d) return null;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
 
 // Calendario desplegable — mismo look que el de "Viernes" (semana-control.js)
@@ -120,7 +154,7 @@ function _pog_abrirCalendario(idx, btnEl, config) {
 
   if (_pog_closeHandler) document.removeEventListener('click', _pog_closeHandler);
   _pog_closeHandler = function(e) {
-    if (e.target.closest('.piso-og-cal-dropdown') || e.target.closest('.piso-og-fecha-btn')) return;
+    if (e.target.closest('.piso-og-cal-dropdown') || e.target.closest('.piso-og-cal-btn')) return;
     document.querySelectorAll('.piso-og-cal-dropdown').forEach(function(el) { el.remove(); });
     _pog_calAbiertoEn = null;
   };
@@ -155,8 +189,10 @@ function _pog_renderCal(dd, idx, config) {
       const fecha = _pog_calYear + '-' + String(_pog_calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
       const esSel = fecha === seleccionada;
       // Todos los días son clickeables (no solo viernes) — a diferencia del
-      // selector "Viernes" de la barra lateral.
-      filasHtml += '<td class="sc-cal-dia sc-cal-viernes' + (esSel ? ' sc-cal-sel' : '') + '" data-fecha="' + fecha + '">' + d + '</td>';
+      // selector "Viernes" de la barra lateral. Usa un color neutro para los
+      // días normales (antes reusaba "sc-cal-viernes", que los pintaba todos
+      // en rojo/acento); el día seleccionado sí se destaca (sc-cal-sel).
+      filasHtml += '<td class="sc-cal-dia pog-cal-dia' + (esSel ? ' sc-cal-sel' : '') + '" data-fecha="' + fecha + '">' + d + '</td>';
     }
     if (i % 7 === 6) filasHtml += '</tr>';
   }

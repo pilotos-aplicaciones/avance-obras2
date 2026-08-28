@@ -491,6 +491,7 @@ function _ogCons_render(panel, config, historialOG) {
     ${btnGuardar}
     <div class="cons-tabla-wrap">
       <table class="tabla-consolidado tabla-og">
+        <colgroup>${'<col>'.repeat(15)}</colgroup>
         <thead>
           <tr>
             <th rowspan="2">Inicio</th><th rowspan="2">Término</th>
