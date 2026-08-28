@@ -239,15 +239,21 @@ function _mat_sidebarEscritorioHTML() {
     ? 'Todos los pisos'
     : (_mat_pisoFiltro < 0 ? 'Sub ' + Math.abs(_mat_pisoFiltro) : 'Piso ' + _mat_pisoFiltro);
 
+  // El filtro de piso solo afecta las tablas por fase y "Todas las fases"
+  // (Resumen y Revisión siempre muestran el proyecto completo, sin importar
+  // el piso elegido) — se oculta el botón cuando no tiene efecto, para no
+  // mostrar un control que no hace nada (pedido de María Paz).
+  const mostrarFiltroPiso = _mat_tabActiva === 'todas' || _mat_tabActiva.startsWith('fase_');
+
   return `
     <nav class="sidebar-nav">
       <button class="sidebar-tab${_mat_tabActiva === 'resumen' ? ' activo' : ''}" data-tab="resumen">
         <span class="sidebar-icono">📊</span><span class="sidebar-texto">Resumen</span>
       </button>
-      <button class="sidebar-btn-filtro" id="mat-btn-filtro-piso">
+      ${mostrarFiltroPiso ? `<button class="sidebar-btn-filtro" id="mat-btn-filtro-piso">
         <span class="sidebar-icono">🏢</span><span class="sidebar-texto">${pisoLabel}</span>
         ${_mat_pisoFiltro !== 'todos' ? '<span class="piso-filtro-x" id="mat-btn-limpiar-piso" title="Quitar filtro de piso">✕</span>' : ''}
-      </button>
+      </button>` : ''}
       <div class="sidebar-nav-sep"></div>
       ${tabFases}
       <button class="sidebar-tab${_mat_tabActiva === 'todas' ? ' activo' : ''}" data-tab="todas">
@@ -1551,8 +1557,41 @@ function _mat_actualizarToolbar() {
     b.classList.toggle('activo', b.dataset.tab === _mat_tabActiva);
   });
 
+  // Piso: el botón solo tiene efecto en "Todas las fases" y en una fase
+  // específica (Resumen y Revisión siempre muestran el proyecto completo) —
+  // se crea/quita dinámicamente aquí porque el cambio de pestaña NO pasa por
+  // un _mat_render() completo, solo por _mat_renderContenido()+_mat_actualizarToolbar().
+  var mostrarFiltroPisoAhora = _mat_tabActiva === 'todas' || _mat_tabActiva.startsWith('fase_');
+  var sidebarNavRef = document.querySelector('.sidebar-nav');
+  var btnPisoRef    = document.getElementById('mat-btn-filtro-piso');
+
+  if (mostrarFiltroPisoAhora && !btnPisoRef && sidebarNavRef) {
+    var sepRef = sidebarNavRef.querySelector('.sidebar-nav-sep');
+    var nuevoBtnPiso = document.createElement('button');
+    nuevoBtnPiso.className = 'sidebar-btn-filtro';
+    nuevoBtnPiso.id        = 'mat-btn-filtro-piso';
+    nuevoBtnPiso.innerHTML = '<span class="sidebar-icono">🏢</span><span class="sidebar-texto">' +
+      (_mat_pisoFiltro === 'todos' ? 'Todos los pisos' : (_mat_pisoFiltro < 0 ? 'Sub ' + Math.abs(_mat_pisoFiltro) : 'Piso ' + _mat_pisoFiltro)) +
+      '</span>' +
+      (_mat_pisoFiltro !== 'todos' ? '<span class="piso-filtro-x" id="mat-btn-limpiar-piso" title="Quitar filtro de piso">✕</span>' : '');
+    nuevoBtnPiso.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (e.target.id === 'mat-btn-limpiar-piso') {
+        _mat_pisoFiltro = 'todos';
+        _mat_render();
+        return;
+      }
+      _mat_mostrarFiltroPiso(e.currentTarget);
+    });
+    if (sepRef) sepRef.parentNode.insertBefore(nuevoBtnPiso, sepRef);
+    else sidebarNavRef.appendChild(nuevoBtnPiso);
+    btnPisoRef = nuevoBtnPiso;
+  } else if (!mostrarFiltroPisoAhora && btnPisoRef) {
+    btnPisoRef.remove();
+    btnPisoRef = null;
+  }
+
   // ✕ piso: actualizar visibilidad de la X inline en el botón de piso
-  var btnPisoRef = document.getElementById('mat-btn-filtro-piso');
   if (btnPisoRef) {
     var xEl = btnPisoRef.querySelector('.piso-filtro-x');
     if (_mat_pisoFiltro !== 'todos' && !xEl) {
