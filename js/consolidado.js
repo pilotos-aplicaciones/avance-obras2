@@ -299,7 +299,9 @@ function _consTerm_aplicarSticky(panel) {
 // historial vive en Firestore + una copia local, sin ningún archivo
 // descargable. Esta función genera ese archivo: una hoja con el avance por
 // fase (acumulado + el "puro" de cada semana) y otra por actividad, tal como
-// se pidió al construir el historial en v4.61.
+// se pidió al construir el historial en v4.61 — más una hoja "Obra Gruesa"
+// con el real ingresado en el Consolidado OG (solo real, sin programado ni
+// desviación — pedido de María Paz en v4.74).
 function consolidado_exportarHistorialExcel(idProyecto) {
   if (typeof XLSX === 'undefined') {
     interfaz_mostrarToast('La librería Excel no está lista. Reintenta en un momento.', 'error');
@@ -311,40 +313,57 @@ function consolidado_exportarHistorialExcel(idProyecto) {
   const historial = (typeof datos_obtenerHistorial === 'function') ? datos_obtenerHistorial(idProyecto) : {};
   const semanas = Object.keys(historial).sort();
 
-  if (!semanas.length) {
+  const historialOG = (typeof datos_obtenerHistorialOG === 'function') ? datos_obtenerHistorialOG(idProyecto) : {};
+  const semanasOG = Object.keys(historialOG).sort();
+
+  if (!semanas.length && !semanasOG.length) {
     interfaz_mostrarToast('Todavía no hay historial guardado — confirma al menos una semana de avances primero.', 'aviso', 4500);
     return;
   }
 
-  const fasesActivas = (typeof logica_fasesEfectivas === 'function') ? logica_fasesEfectivas(config) : [1, 2, 3, 4, 5, 6];
-
-  // Columnas agrupadas por tipo (%, luego Piso, luego Deptos) — no
-  // intercaladas — pedido de María Paz.
-  const filasFase = [['Semana', 'Fase', '% Avance acumulado', '% Avance de la semana', 'Piso acumulado', 'Piso de la semana']];
-  semanas.forEach(function(sem) {
-    const snap = historial[sem];
-    fasesActivas.forEach(function(f) {
-      const d = snap.fases && snap.fases[f];
-      if (!d) return;
-      const nombreFase = NOMBRES_FASES[f].split('–')[0].trim();
-      filasFase.push([sem, nombreFase, d.avancePct, d.avancePctSemanal, d.piso, d.pisoSemanal]);
-    });
-  });
-
-  const filasAct = [['Semana', 'Actividad', '% Avance acumulado', '% Avance de la semana', 'Piso acumulado', 'Piso de la semana', 'Deptos terminados (acumulado)', 'Deptos de la semana']];
-  semanas.forEach(function(sem) {
-    const snap = historial[sem];
-    const numeros = Object.keys(snap.actividades || {}).map(Number).sort(function(a, b) { return a - b; });
-    numeros.forEach(function(numero) {
-      const d = snap.actividades[numero];
-      const nombre = (typeof actividades_getNombreProyecto === 'function') ? actividades_getNombreProyecto(config, numero) : ('Actividad ' + numero);
-      filasAct.push([sem, numero + ' - ' + nombre, d.avancePct, d.avancePctSemanal, d.piso, d.pisoSemanal, d.deptos, d.deptosSemanal]);
-    });
-  });
-
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasFase), 'Por fase');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasAct), 'Por actividad');
+
+  if (semanas.length) {
+    const fasesActivas = (typeof logica_fasesEfectivas === 'function') ? logica_fasesEfectivas(config) : [1, 2, 3, 4, 5, 6];
+
+    // Columnas agrupadas por tipo (%, luego Piso, luego Deptos) — no
+    // intercaladas — pedido de María Paz.
+    const filasFase = [['Semana', 'Fase', '% Avance acumulado', '% Avance de la semana', 'Piso acumulado', 'Piso de la semana']];
+    semanas.forEach(function(sem) {
+      const snap = historial[sem];
+      fasesActivas.forEach(function(f) {
+        const d = snap.fases && snap.fases[f];
+        if (!d) return;
+        const nombreFase = NOMBRES_FASES[f].split('–')[0].trim();
+        filasFase.push([sem, nombreFase, d.avancePct, d.avancePctSemanal, d.piso, d.pisoSemanal]);
+      });
+    });
+
+    const filasAct = [['Semana', 'Actividad', '% Avance acumulado', '% Avance de la semana', 'Piso acumulado', 'Piso de la semana', 'Deptos terminados (acumulado)', 'Deptos de la semana']];
+    semanas.forEach(function(sem) {
+      const snap = historial[sem];
+      const numeros = Object.keys(snap.actividades || {}).map(Number).sort(function(a, b) { return a - b; });
+      numeros.forEach(function(numero) {
+        const d = snap.actividades[numero];
+        const nombre = (typeof actividades_getNombreProyecto === 'function') ? actividades_getNombreProyecto(config, numero) : ('Actividad ' + numero);
+        filasAct.push([sem, numero + ' - ' + nombre, d.avancePct, d.avancePctSemanal, d.piso, d.pisoSemanal, d.deptos, d.deptosSemanal]);
+      });
+    });
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasFase), 'Por fase');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasAct), 'Por actividad');
+  }
+
+  if (semanasOG.length) {
+    // Solo el real (pedido explícito de María Paz) — sin programado, sin
+    // acumulado, sin desviación.
+    const filasOG = [['Fecha', 'Fundaciones', 'Subterráneo', 'Placa', 'Núcleo', 'Avance Semanal']];
+    semanasOG.forEach(function(sem) {
+      const d = historialOG[sem];
+      filasOG.push([sem, d.fundaciones || 0, d.subterraneo || 0, d.placa || 0, d.nucleo || 0, d.avanceSemanal || 0]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasOG), 'Obra Gruesa');
+  }
 
   const nombreProy = (config.nombre || 'proyecto').replace(/\s+/g, '_');
   const fecha = new Date().toISOString().slice(0, 10);
@@ -442,6 +461,21 @@ function ogCons_inicializar(idProyecto) {
   });
 }
 
+// Refresco tras editar una celda o pegar (sin ir a buscar a internet ni
+// borrar la tabla primero) — usa el historial que YA está en el dispositivo
+// (datos_aplicarCambiosOG lo dejó al día antes de llamar acá). Ir a buscar a
+// Firestore en cada tecleo (como hacía ogCons_inicializar) producía el
+// parpadeo: la tabla se borraba a "Cargando…" y, si esa consulta volvía con
+// una versión más vieja, hasta podía pisar lo recién escrito antes de
+// alcanzar a presionar "Guardar".
+function _ogCons_refrescarLocal(idProyecto) {
+  const panel = document.getElementById('panel-tab-consolidado-og');
+  if (!panel) return;
+  const config = datos_cargarProyecto(idProyecto);
+  if (!config) return;
+  _ogCons_render(panel, config, datos_obtenerHistorialOG(idProyecto));
+}
+
 function _ogCons_render(panel, config, historialOG) {
   const programacionOG = config.programacionOG || [];
   const filas = og_cruzarSemanas(programacionOG, historialOG);
@@ -485,7 +519,9 @@ function _ogCons_render(panel, config, historialOG) {
     </tr>`;
   }).join('');
 
-  const btnGuardar = puedeEditar ? `<div class="og-toolbar"><button class="btn-primario" id="og-btn-guardar">💾 Guardar Obra Gruesa</button></div>` : '';
+  // Mismo botón compacto que usa Terminaciones para "Guardar avances" (antes
+  // era un botón grande en su propia fila — ocupaba mucho espacio).
+  const btnGuardar = puedeEditar ? `<div class="og-toolbar"><button class="movil-btn-guardar" id="og-btn-guardar" title="Guardar Obra Gruesa">✓ Guardar Obra Gruesa</button></div>` : '';
 
   panel.innerHTML = `
     ${btnGuardar}
@@ -524,7 +560,7 @@ function _ogCons_registrarEventos(panel, idProyecto, filas) {
       cambios[inp.dataset.fecha] = {};
       cambios[inp.dataset.fecha][inp.dataset.campo] = _ogCons_parseNum(inp.value);
       datos_aplicarCambiosOG(idProyecto, cambios);
-      ogCons_inicializar(idProyecto);
+      _ogCons_refrescarLocal(idProyecto);
     });
     inp.addEventListener('paste', function(e) {
       _ogCons_pasteHandler(e, inp, idProyecto, filas);
@@ -578,5 +614,5 @@ function _ogCons_pasteHandler(e, inputAncla, idProyecto, filas) {
   });
 
   datos_aplicarCambiosOG(idProyecto, cambios);
-  ogCons_inicializar(idProyecto);
+  _ogCons_refrescarLocal(idProyecto);
 }

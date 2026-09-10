@@ -16,23 +16,6 @@ let _graf_ultimoPanel = null, _graf_ultimoConfig = null, _graf_ultimoHistorial =
 // se acomoda para caber siempre en este mismo alto.
 const GRAF_ALTO = 380;
 
-// Elige un "paso" redondo (1/2/2.5/5 × 10^n) para el eje Y de Obra Gruesa,
-// apuntando a un número razonable de marcas (ni muy pocas — se ve pelado —
-// ni muchas — se amontonan). Mismo criterio que usan librerías de gráficos
-// para ejes con números "lindos" (250, 500, 1000, 2000...).
-function _graf_pasoNiceY(maxY, objetivoTicks) {
-  const bruto = Math.max(maxY, 1) / objetivoTicks;
-  const potencia = Math.pow(10, Math.floor(Math.log10(bruto)));
-  const norm = bruto / potencia;
-  let mult;
-  if (norm <= 1) mult = 1;
-  else if (norm <= 2) mult = 2;
-  else if (norm <= 2.5) mult = 2.5;
-  else if (norm <= 5) mult = 5;
-  else mult = 10;
-  return mult * potencia;
-}
-
 function graficos_inicializar(idProyecto) {
   const panel = document.getElementById('panel-tab-graficos');
   if (!panel) return;
@@ -102,12 +85,11 @@ function _graf_renderOG(panel, config, historialOG) {
     if (r && r.avanceAcumulado !== null && r.avanceAcumulado !== undefined) maxY = Math.max(maxY, r.avanceAcumulado);
   });
 
-  // Eje Y en marcas "redondas" (250/500/1000... según convenga) — el paso
-  // se calcula solo para que siempre queden entre 5 y 7 marcas más o menos,
-  // ni pocas (se ve pelado) ni muchas (se amontonan). El alto del gráfico es
-  // fijo (GRAF_ALTO, igual que Terminaciones) — lo que se ajusta es la
-  // separación entre líneas, no el tamaño del cuadro.
-  const STEP_Y = _graf_pasoNiceY(maxY, 6);
+  // Eje Y en marcas fijas de 250 m³ (pedido de María Paz), aunque eso
+  // signifique más líneas horizontales si el total es grande. El alto del
+  // gráfico es fijo (GRAF_ALTO, igual que Terminaciones) — lo que se ajusta
+  // es la separación entre líneas, no el tamaño del cuadro.
+  const STEP_Y = 250;
   let maxTickY = Math.ceil(maxY / STEP_Y) * STEP_Y;
   if (maxTickY <= maxY) maxTickY += STEP_Y; // deja un margen arriba de la curva más alta
   maxY = maxTickY;
