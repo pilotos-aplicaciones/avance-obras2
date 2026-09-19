@@ -519,12 +519,11 @@ function _ogCons_render(panel, config, historialOG) {
     </tr>`;
   }).join('');
 
-  // Mismo botón compacto que usa Terminaciones para "Guardar avances" (antes
-  // era un botón grande en su propia fila — ocupaba mucho espacio).
-  const btnGuardar = puedeEditar ? `<div class="og-toolbar"><button class="movil-btn-guardar" id="og-btn-guardar" title="Guardar Obra Gruesa">✓ Guardar Obra Gruesa</button></div>` : '';
-
+  // Sin botón propio en la tabla — se guarda con el mismo círculo flotante
+  // 💾 que usa Terminaciones (interfaz.js decide, según la pestaña activa,
+  // si guarda avances de Terminaciones o de Obra Gruesa). Pedido de María
+  // Paz: un solo punto de guardado, no un botón por pestaña.
   panel.innerHTML = `
-    ${btnGuardar}
     <div class="cons-tabla-wrap">
       <table class="tabla-consolidado tabla-og">
         <colgroup>${'<col>'.repeat(15)}</colgroup>
@@ -560,23 +559,28 @@ function _ogCons_registrarEventos(panel, idProyecto, filas) {
       cambios[inp.dataset.fecha] = {};
       cambios[inp.dataset.fecha][inp.dataset.campo] = _ogCons_parseNum(inp.value);
       datos_aplicarCambiosOG(idProyecto, cambios);
+      window._coa_guardadoPendiente = true; // muestra el círculo flotante 💾
       _ogCons_refrescarLocal(idProyecto);
     });
     inp.addEventListener('paste', function(e) {
       _ogCons_pasteHandler(e, inp, idProyecto, filas);
     });
   });
+}
 
-  const btnGuardar = document.getElementById('og-btn-guardar');
-  if (btnGuardar) {
-    btnGuardar.addEventListener('click', function() {
-      interfaz_mostrarModal(
-        'Guardar Obra Gruesa',
-        '¿Confirmas subir los avances reales de Obra Gruesa? Se sincronizarán con todos los dispositivos.',
-        function() { datos_guardarHistorialOG(idProyecto); }
-      );
-    });
-  }
+// Confirma y sube a Firestore los avances reales de Obra Gruesa — llamado
+// por el círculo flotante 💾 (interfaz.js) cuando la pestaña activa es
+// Consolidado OG. Mismo mensaje de confirmación que tenía el botón propio
+// que se sacó de la tabla.
+function ogCons_confirmarGuardado(idProyecto) {
+  interfaz_mostrarModal(
+    'Guardar Obra Gruesa',
+    '¿Confirmas subir los avances reales de Obra Gruesa? Se sincronizarán con todos los dispositivos.',
+    function() {
+      datos_guardarHistorialOG(idProyecto);
+      window._coa_guardadoPendiente = false;
+    }
+  );
 }
 
 function _ogCons_parseNum(v) {
@@ -614,5 +618,6 @@ function _ogCons_pasteHandler(e, inputAncla, idProyecto, filas) {
   });
 
   datos_aplicarCambiosOG(idProyecto, cambios);
+  window._coa_guardadoPendiente = true; // muestra el círculo flotante 💾
   _ogCons_refrescarLocal(idProyecto);
 }

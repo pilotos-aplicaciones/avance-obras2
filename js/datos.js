@@ -386,14 +386,23 @@ function datos_aplicarCambiosOG(idProyecto, cambios) {
   if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(idProyecto)) return false;
   const historial = _datos_historialOGLocal(idProyecto);
 
+  // Una columna que nunca se tocó queda en null (no en 0) — 0 es un valor
+  // real que alguien escribió a propósito; null significa "todavía no se ha
+  // ingresado nada ahí". Antes se guardaba 0 por defecto y la tabla lo
+  // mostraba como si esa columna ya tuviera un dato (pedido de María Paz:
+  // varias columnas pueden tener avances, y las que no se han llenado deben
+  // verse vacías). La suma de más abajo ya trata null como 0 (con "|| 0").
   Object.keys(cambios).forEach(function(fecha) {
     const actual = historial[fecha] || {};
     const nuevo = cambios[fecha];
+    const conserva = function(campo) {
+      return (campo in nuevo) ? nuevo[campo] : (actual[campo] !== undefined ? actual[campo] : null);
+    };
     historial[fecha] = {
-      fundaciones:  ('fundaciones'  in nuevo) ? nuevo.fundaciones  : (actual.fundaciones  || 0),
-      subterraneo:  ('subterraneo'  in nuevo) ? nuevo.subterraneo  : (actual.subterraneo  || 0),
-      placa:        ('placa'        in nuevo) ? nuevo.placa        : (actual.placa        || 0),
-      nucleo:       ('nucleo'       in nuevo) ? nuevo.nucleo       : (actual.nucleo       || 0),
+      fundaciones:  conserva('fundaciones'),
+      subterraneo:  conserva('subterraneo'),
+      placa:        conserva('placa'),
+      nucleo:       conserva('nucleo'),
     };
   });
 

@@ -805,7 +805,23 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .tabla-og { table-layout: fixed; }
 .tabla-og col { width: 92px; }
 
-.og-toolbar { display: flex; justify-content: flex-end; margin-bottom: .75rem; flex-shrink: 0; }
+/* Columnas de fecha (Inicio/Término) fijas a la izquierda al desplazarse
+   horizontalmente — pedido de María Paz para siempre saber qué semana se
+   está llenando. Mismo mecanismo que el encabezado fijo arriba
+   (_consTerm_aplicarSticky), pero en el eje horizontal. El ancho de cada
+   columna (92px, del colgroup de arriba) fija dónde queda pegada la
+   segunda columna (Término), justo después de la primera (Inicio). */
+.tabla-og td.cons-fecha:nth-child(1),
+.tabla-og thead tr:first-child th:nth-child(1) {
+  position: sticky; left: 0; z-index: 2;
+}
+.tabla-og td.cons-fecha:nth-child(2),
+.tabla-og thead tr:first-child th:nth-child(2) {
+  position: sticky; left: 92px; z-index: 2;
+}
+.tabla-og td.cons-fecha { background: var(--fondo-card); }
+.tabla-og .cons-fila-actual td.cons-fecha { background: #FFF3B0; }
+
 .og-celda-real { background: var(--fondo-card); }
 .og-input {
   width: 100%; min-width: 64px; border: none; background: transparent; text-align: center;

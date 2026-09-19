@@ -51,6 +51,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = typeof router_getProyectoActivo === 'function' ? router_getProyectoActivo() : null;
     if (!id) return;
 
+    // Un solo botón de guardado para toda la app (pedido de María Paz: sacar
+    // el botón propio de la tabla de Obra Gruesa) — según la pestaña activa,
+    // el círculo guarda Terminaciones o guarda Obra Gruesa.
+    const tabActiva = typeof router_getTabActiva === 'function' ? router_getTabActiva() : null;
+    if (tabActiva === 'tab-consolidado-og') {
+      if (typeof ogCons_confirmarGuardado === 'function') ogCons_confirmarGuardado(id);
+      return;
+    }
+
     const _confirmarGuardado = () => {
       interfaz_mostrarModal(
         'Guardar avances',
