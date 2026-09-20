@@ -240,3 +240,14 @@ function logica_semanaLabel(isoStr) {
   // "Semana del DD/MM"
   return 'Sem. ' + logica_formatearFecha(isoStr);
 }
+
+// Viernes de la semana calendario actual (hoy), en YYYY-MM-DD. Misma cuenta
+// que ya usaba el botón "Usar viernes de esta semana" de la barra de control
+// (semana-control.js) — movida acá para poder reutilizarla también desde
+// Obra Gruesa (avisar si la fecha de control quedó desactualizada).
+function logica_viernesDeEstaSemana() {
+  const hoy = new Date();
+  const dia = hoy.getDay(); // 0=Dom … 6=Sab
+  hoy.setDate(hoy.getDate() + (5 - dia + 7) % 7);
+  return hoy.toISOString().slice(0, 10);
+}

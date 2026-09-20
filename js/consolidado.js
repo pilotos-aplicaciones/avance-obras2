@@ -456,9 +456,27 @@ function ogCons_inicializar(idProyecto) {
   const config = datos_cargarProyecto(idProyecto);
   if (!config) { panel.innerHTML = '<div class="proy-nav-placeholder">No se encontró el proyecto.</div>'; return; }
 
+  _ogCons_avisarSiFechaDesactualizada(idProyecto);
+
   datos_sincronizarHistorialOG(idProyecto, function(historialOG) {
     _ogCons_render(panel, config, historialOG);
   });
+}
+
+// Aviso (no bloqueante) al abrir la pestaña: si la fecha de control de la
+// barra lateral ("Viernes") no corresponde a la semana calendario actual,
+// recuerda actualizarla antes de seguir registrando — pedido de María Paz:
+// "la fecha de avances siempre se debería actualizar".
+function _ogCons_avisarSiFechaDesactualizada(idProyecto) {
+  if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(idProyecto)) return;
+  if (typeof datos_cargarSemanaControl !== 'function' || typeof logica_viernesDeEstaSemana !== 'function') return;
+  const ctrl = datos_cargarSemanaControl(idProyecto);
+  if (!ctrl || !ctrl.semana) return; // sin viernes elegido aún — no es este aviso el que corresponde
+  const semanaActual = logica_viernesDeEstaSemana();
+  if (ctrl.semana !== semanaActual && typeof interfaz_mostrarToast === 'function') {
+    const fechaTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(ctrl.semana) : ctrl.semana;
+    interfaz_mostrarToast('La fecha de control (barra lateral) sigue en el ' + fechaTxt + ' — actualízala si vas a registrar avances de esta semana.', 'aviso', 6000);
+  }
 }
 
 // Refresco tras editar una celda o pegar (sin ir a buscar a internet ni
@@ -555,12 +573,40 @@ function _ogCons_registrarEventos(panel, idProyecto, filas) {
   inputs.forEach(function(inp) {
     inp.addEventListener('focus', function() { _ogCons_anclaInput = inp; });
     inp.addEventListener('change', function() {
-      const cambios = {};
-      cambios[inp.dataset.fecha] = {};
-      cambios[inp.dataset.fecha][inp.dataset.campo] = _ogCons_parseNum(inp.value);
-      datos_aplicarCambiosOG(idProyecto, cambios);
-      window._coa_guardadoPendiente = true; // muestra el círculo flotante 💾
-      _ogCons_refrescarLocal(idProyecto);
+      const fecha = inp.dataset.fecha;
+      const campo = inp.dataset.campo;
+
+      const aplicar = function() {
+        const cambios = {};
+        cambios[fecha] = {};
+        cambios[fecha][campo] = _ogCons_parseNum(inp.value);
+        datos_aplicarCambiosOG(idProyecto, cambios);
+        window._coa_guardadoPendiente = true; // muestra el círculo flotante 💾
+        _ogCons_refrescarLocal(idProyecto);
+      };
+
+      // Aviso si esa semana YA tenía algún avance real cargado (en cualquiera
+      // de las 4 columnas, no solo la que se está tocando) — pedido de María
+      // Paz: escribiendo a mano, celda por celda, tiene que avisar antes de
+      // completar/reemplazar una semana que ya estaba guardada. El pegado
+      // tipo Excel (_ogCons_pasteHandler) queda sin este aviso a propósito.
+      const historialActual = (typeof datos_obtenerHistorialOG === 'function') ? datos_obtenerHistorialOG(idProyecto) : {};
+      const filaExistente = historialActual[fecha];
+      const yaTeniaDatos = filaExistente && _OG_COLUMNAS.some(function(c) {
+        return filaExistente[c] !== null && filaExistente[c] !== undefined;
+      });
+
+      if (yaTeniaDatos) {
+        const fechaTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(fecha) : fecha;
+        interfaz_mostrarModal(
+          'Semana con avances guardados',
+          'La semana del ' + fechaTxt + ' ya tiene avances reales cargados. ¿Confirmas completar/reemplazar esos datos?',
+          aplicar,
+          function() { _ogCons_refrescarLocal(idProyecto); } // cancelar: descarta lo tecleado, vuelve a mostrar el valor anterior
+        );
+      } else {
+        aplicar();
+      }
     });
     inp.addEventListener('paste', function(e) {
       _ogCons_pasteHandler(e, inp, idProyecto, filas);

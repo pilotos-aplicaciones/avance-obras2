@@ -159,10 +159,9 @@ function _sc_seleccionarFecha(fecha) {
 }
 
 function _sc_viernesDeEstaSemana() {
-  const hoy = new Date();
-  const dia = hoy.getDay(); // 0=Dom … 6=Sab
-  hoy.setDate(hoy.getDate() + (5 - dia + 7) % 7);
-  return hoy.toISOString().slice(0, 10);
+  // Movida a logica.js (logica_viernesDeEstaSemana) para poder reutilizarla
+  // también desde Obra Gruesa.
+  return logica_viernesDeEstaSemana();
 }
 
 // ── Eventos ───────────────────────────────────────────────────────────────────
