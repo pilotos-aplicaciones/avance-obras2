@@ -240,6 +240,8 @@ function interfaz_mostrarModal(titulo, mensaje, onConfirmar, onCancelar) {
   const btnConfViejo = document.getElementById('modal-confirmar');
   const btnConfNuevo = btnConfViejo.cloneNode(true);
   btnConfViejo.parentNode.replaceChild(btnConfNuevo, btnConfViejo);
+  btnConfNuevo.textContent = 'Confirmar';
+  btnConfNuevo.style.display = '';
   btnConfNuevo.addEventListener('click', () => {
     interfaz_cerrarModal();
     if (onConfirmar) onConfirmar();
@@ -248,6 +250,8 @@ function interfaz_mostrarModal(titulo, mensaje, onConfirmar, onCancelar) {
   const btnCancViejo = document.getElementById('modal-cancelar');
   const btnCancNuevo = btnCancViejo.cloneNode(true);
   btnCancViejo.parentNode.replaceChild(btnCancNuevo, btnCancViejo);
+  btnCancNuevo.textContent = 'Cancelar';
+  btnCancNuevo.style.display = '';
   btnCancNuevo.addEventListener('click', () => {
     interfaz_cerrarModal();
     if (onCancelar) onCancelar();
@@ -256,6 +260,15 @@ function interfaz_mostrarModal(titulo, mensaje, onConfirmar, onCancelar) {
 
 function interfaz_cerrarModal() {
   document.getElementById('modal-overlay').style.display = 'none';
+}
+
+// Variante de un solo botón para avisos informativos (sin opción de cancelar).
+function interfaz_mostrarAviso(titulo, mensaje, onEntendido) {
+  interfaz_mostrarModal(titulo, mensaje, onEntendido);
+  const btnCancelar = document.getElementById('modal-cancelar');
+  if (btnCancelar) btnCancelar.style.display = 'none';
+  const btnConfirmar = document.getElementById('modal-confirmar');
+  if (btnConfirmar) btnConfirmar.textContent = 'Entendido';
 }
 
 function _interfaz_registrarModal() {

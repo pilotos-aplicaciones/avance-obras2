@@ -463,19 +463,19 @@ function ogCons_inicializar(idProyecto) {
   });
 }
 
-// Aviso (no bloqueante) al abrir la pestaña: si la fecha de control de la
-// barra lateral ("Viernes") no corresponde a la semana calendario actual,
-// recuerda actualizarla antes de seguir registrando — pedido de María Paz:
-// "la fecha de avances siempre se debería actualizar".
+// Aviso al abrir la pestaña: si la fecha de control ("Viernes") no
+// corresponde a la semana calendario actual, recuerda actualizarla antes de
+// seguir registrando — pedido de María Paz: "la fecha de avances siempre se
+// debería actualizar". Mismo estilo de modal que usa Terminaciones.
 function _ogCons_avisarSiFechaDesactualizada(idProyecto) {
   if (typeof authp_puedeEditar === 'function' && !authp_puedeEditar(idProyecto)) return;
   if (typeof datos_cargarSemanaControl !== 'function' || typeof logica_viernesDeEstaSemana !== 'function') return;
   const ctrl = datos_cargarSemanaControl(idProyecto);
   if (!ctrl || !ctrl.semana) return; // sin viernes elegido aún — no es este aviso el que corresponde
   const semanaActual = logica_viernesDeEstaSemana();
-  if (ctrl.semana !== semanaActual && typeof interfaz_mostrarToast === 'function') {
+  if (ctrl.semana !== semanaActual && typeof interfaz_mostrarAviso === 'function') {
     const fechaTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(ctrl.semana) : ctrl.semana;
-    interfaz_mostrarToast('La fecha de control (barra lateral) sigue en el ' + fechaTxt + ' — actualízala si vas a registrar avances de esta semana.', 'aviso', 6000);
+    interfaz_mostrarAviso('Fecha de control desactualizada', 'La fecha de control sigue en el ' + fechaTxt + '. Actualízala si vas a registrar avances de esta semana.');
   }
 }
 
