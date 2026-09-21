@@ -16,6 +16,13 @@ let _graf_ultimoPanel = null, _graf_ultimoConfig = null, _graf_ultimoHistorial =
 // se acomoda para caber siempre en este mismo alto.
 const GRAF_ALTO = 380;
 
+// "dd/mm/aa" en vez de solo "dd/mm" — pedido de María Paz para saber en qué
+// año va cada semana sin tener que adivinar (los gráficos cruzan años).
+function _graf_etiquetaFecha(iso) {
+  const f = logica_formatearFecha(iso); // "dd/mm/aaaa"
+  return f ? f.slice(0, 6) + f.slice(8) : f;
+}
+
 function graficos_inicializar(idProyecto) {
   const panel = document.getElementById('panel-tab-graficos');
   if (!panel) return;
@@ -132,7 +139,7 @@ function _graf_renderOG(panel, config, historialOG) {
     const yEtq = H - padB + (anguloX ? 10 : 14);
     const transform = anguloX ? ` transform="rotate(-${anguloX} ${x.toFixed(1)} ${yEtq})"` : '';
     const anchor = anguloX ? 'end' : 'middle';
-    etiquetasX += `<text x="${x.toFixed(1)}" y="${yEtq}" font-size="8.5" fill="#A09A93" text-anchor="${anchor}"${transform}>${logica_formatearFecha(fila.semana).slice(0, 5)}</text>`;
+    etiquetasX += `<text x="${x.toFixed(1)}" y="${yEtq}" font-size="8.5" fill="#A09A93" text-anchor="${anchor}"${transform}>${_graf_etiquetaFecha(fila.semana)}</text>`;
   });
 
   // Eje Y en m³ acumulados: una marca cada 250 m³ (no piso a piso).
@@ -284,7 +291,7 @@ function _graf_renderTerminaciones(panel, config, historial) {
     const yEtq = H - padB + (anguloX ? 10 : 14);
     const transform = anguloX ? ` transform="rotate(-${anguloX} ${x.toFixed(1)} ${yEtq})"` : '';
     const anchor = anguloX ? 'end' : 'middle';
-    etiquetasX += `<text x="${x.toFixed(1)}" y="${yEtq}" font-size="8.5" fill="#A09A93" text-anchor="${anchor}"${transform}>${logica_formatearFecha(fila.semana).slice(0, 5)}</text>`;
+    etiquetasX += `<text x="${x.toFixed(1)}" y="${yEtq}" font-size="8.5" fill="#A09A93" text-anchor="${anchor}"${transform}>${_graf_etiquetaFecha(fila.semana)}</text>`;
   });
 
   // Grilla horizontal (una línea por piso) + etiquetas del eje Y — solo el

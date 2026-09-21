@@ -237,15 +237,44 @@ function _pog_renderCal(dd, idx, config) {
   }
 }
 
+// Si el nivel YA tenía una fecha distinta guardada, pide confirmación antes
+// de reemplazarla (pedido de María Paz) — no aplica al ingresar la fecha por
+// primera vez, ni al "Quitar fecha" (eso ya es una acción explícita con su
+// propio botón).
 function _pog_guardarFecha(idx, config, fecha) {
   const filas = _pog_filasCombinadas(config);
-  filas[idx].fechaTermino = fecha;
-  const ok = datos_guardarPisoOG(config.id, filas);
-  document.querySelectorAll('.piso-og-cal-dropdown').forEach(function(el) { el.remove(); });
-  _pog_calAbiertoEn = null;
-  if (ok) {
-    const configActualizado = datos_cargarProyecto(config.id);
-    const panel = document.getElementById('panel-tab-piso-og');
-    if (panel) _pog_render(panel, configActualizado);
+  const anterior = filas[idx].fechaTermino;
+
+  const aplicar = function() {
+    filas[idx].fechaTermino = fecha;
+    const ok = datos_guardarPisoOG(config.id, filas);
+    document.querySelectorAll('.piso-og-cal-dropdown').forEach(function(el) { el.remove(); });
+    _pog_calAbiertoEn = null;
+    if (ok) {
+      const configActualizado = datos_cargarProyecto(config.id);
+      const panel = document.getElementById('panel-tab-piso-og');
+      if (panel) _pog_render(panel, configActualizado);
+    }
+  };
+
+  const sobrescribe = anterior && fecha && fecha !== anterior;
+  if (sobrescribe && typeof interfaz_mostrarModal === 'function') {
+    const nivel = filas[idx].nivel;
+    const fechaAnteriorTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(anterior) : anterior;
+    const fechaNuevaTxt = (typeof logica_formatearFecha === 'function') ? logica_formatearFecha(fecha) : fecha;
+    interfaz_mostrarModal(
+      'Reemplazar fecha de término',
+      nivel + ' ya tenía fecha de término ' + fechaAnteriorTxt + '. ¿Confirmas reemplazarla por ' + fechaNuevaTxt + '?',
+      aplicar,
+      function() {
+        document.querySelectorAll('.piso-og-cal-dropdown').forEach(function(el) { el.remove(); });
+        _pog_calAbiertoEn = null;
+        // Deja el input tal cual estaba (con la fecha anterior), sin aplicar el cambio.
+        const panel = document.getElementById('panel-tab-piso-og');
+        if (panel) _pog_render(panel, config);
+      }
+    );
+  } else {
+    aplicar();
   }
 }

@@ -483,6 +483,14 @@ function og_pisoRealEscalonado(config, semanaControl) {
   const tope = (semanaControl && semanaControl > ultimaConDato) ? semanaControl : ultimaConDato;
 
   const resultado = {};
+
+  // Punto base, una semana ANTES del primer hito real: el "nivel anterior"
+  // (mismo mecanismo que usa Terminaciones para que su curva no aparezca de
+  // la nada) — pedido de María Paz, solo para el arranque de la curva.
+  const dBase = new Date(primeraSemana + 'T12:00:00');
+  dBase.setDate(dBase.getDate() - 7);
+  resultado[dBase.toISOString().slice(0, 10)] = hitos[0].piso - 1;
+
   let cursor = primeraSemana;
   let valorActual = null;
   let guarda = 0; // corta cualquier bucle accidental (fechas corruptas, etc.)
