@@ -1,9 +1,10 @@
 // Obra Gruesa — pestaña "Piso OG": listado de niveles del edificio (desde
-// Fundaciones hasta el último piso, según config.pisos/config.subterraneos)
-// con su fecha de término real, ingresada a mano. A diferencia del selector
-// "Viernes" de la barra lateral, acá cualquier día es válido — el hormigonado
-// de un nivel no cae siempre en viernes (confirmado con el Excel de obra
-// gruesa de María Paz: fechas de término en distintos días de la semana).
+// "Inicio fundaciones" — que ancla el arranque de la curva del gráfico —
+// hasta el último piso, según config.pisos/config.subterraneos) con su fecha
+// real, ingresada a mano. A diferencia del selector "Viernes" de la barra
+// lateral, acá cualquier día es válido — el hormigonado de un nivel no cae
+// siempre en viernes (confirmado con el Excel de obra gruesa de María Paz:
+// fechas en distintos días de la semana).
 
 let _pog_id           = null;
 let _pog_calAbiertoEn = null; // índice de la fila con el calendario desplegado
@@ -25,7 +26,11 @@ function pisoOG_inicializar(idProyecto) {
 // lista se ajusta sola sin perder las fechas ya ingresadas (se cruzan por
 // el nombre del nivel).
 function _pog_nivelesEsperados(config) {
-  const niveles = ['Fundaciones'];
+  // "Inicio fundaciones" ancla el arranque de la curva del gráfico (un nivel
+  // antes de "Fundaciones") — pedido de María Paz, para no tener que inventar
+  // un punto base: con esta fila la curva real parte de un dato real, igual
+  // que cualquier otro nivel.
+  const niveles = ['Inicio fundaciones', 'Fundaciones'];
   const subs = config.subterraneos || 0;
   for (let s = subs; s >= 1; s--) niveles.push('Subterráneo ' + s);
   const pisos = config.pisos || 0;

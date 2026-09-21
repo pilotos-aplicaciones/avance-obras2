@@ -447,14 +447,16 @@ function og_cruzarSemanas(programacionOG, historialOG) {
 
 // ── Piso OG real, escalonado (para el gráfico de Terminaciones) ─────────────
 // A partir de los niveles con fecha de término ingresados en "Piso OG"
-// (config.pisoOG), arma una curva ESCALONADA de piso aproximado por semana:
-// cada nivel terminado se ubica en el viernes siguiente a su fecha; entre un
-// hito y el siguiente el valor se mantiene plano (nada de interpolar en
-// diagonal); y no se extiende más allá de la semana de control — pedido de
-// María Paz: si no se ha terminado un piso nuevo, la plana llega hasta la
-// semana de control y ahí se corta, sin seguir "eterna" hacia semanas
-// futuras sin dato. Devuelve { 'YYYY-MM-DD': piso, ... }, una entrada por
-// cada semana entre el primer hito y ese tope (inclusive).
+// (config.pisoOG — incluye "Inicio fundaciones", que ancla el arranque de la
+// curva con un dato real en vez de inventar un punto base), arma una curva
+// ESCALONADA de piso aproximado por semana: cada nivel terminado se ubica en
+// el viernes siguiente a su fecha; entre un hito y el siguiente el valor se
+// mantiene plano (nada de interpolar en diagonal); y no se extiende más allá
+// de la semana de control — pedido de María Paz: si no se ha terminado un
+// piso nuevo, la plana llega hasta la semana de control y ahí se corta, sin
+// seguir "eterna" hacia semanas futuras sin dato. Devuelve
+// { 'YYYY-MM-DD': piso, ... }, una entrada por cada semana entre el primer
+// hito y ese tope (inclusive).
 function og_pisoRealEscalonado(config, semanaControl) {
   const niveles = (config.pisoOG || []).filter(function(n) { return n.fechaTermino; });
   if (!niveles.length) return {};
@@ -483,14 +485,6 @@ function og_pisoRealEscalonado(config, semanaControl) {
   const tope = (semanaControl && semanaControl > ultimaConDato) ? semanaControl : ultimaConDato;
 
   const resultado = {};
-
-  // Punto base, una semana ANTES del primer hito real: el "nivel anterior"
-  // (mismo mecanismo que usa Terminaciones para que su curva no aparezca de
-  // la nada) — pedido de María Paz, solo para el arranque de la curva.
-  const dBase = new Date(primeraSemana + 'T12:00:00');
-  dBase.setDate(dBase.getDate() - 7);
-  resultado[dBase.toISOString().slice(0, 10)] = hitos[0].piso - 1;
-
   let cursor = primeraSemana;
   let valorActual = null;
   let guarda = 0; // corta cualquier bucle accidental (fechas corruptas, etc.)

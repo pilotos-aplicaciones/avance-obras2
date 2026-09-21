@@ -259,15 +259,18 @@ function logica_viernesDeEstaSemana() {
   return logica_viernesSiguienteA(new Date().toISOString().slice(0, 10));
 }
 
-// Convierte un nivel de la pestaña "Piso OG" (Fundaciones / Subterráneo N /
-// Piso N) al mismo eje "piso aproximado" que usa el gráfico de Terminaciones
-// — para poder graficar ambas curvas juntas. Piso N → N; Subterráneo k → 1-k
-// (Subterráneo 1, el más cercano a superficie, → 0); Fundaciones →
-// -subterraneos (justo debajo del subterráneo más profundo). Confirmado
-// contra el Excel de referencia de María Paz (columna "Pisos" de la hoja
-// "Completar Piso OG": con 1 subterráneo, Fundaciones=-1, Sub1=0, Piso1=1…).
+// Convierte un nivel de la pestaña "Piso OG" (Inicio fundaciones /
+// Fundaciones / Subterráneo N / Piso N) al mismo eje "piso aproximado" que
+// usa el gráfico de Terminaciones — para poder graficar ambas curvas juntas.
+// Piso N → N; Subterráneo k → 1-k (Subterráneo 1, el más cercano a
+// superficie, → 0); Fundaciones → -subterraneos (justo debajo del
+// subterráneo más profundo); Inicio fundaciones → -subterraneos-1 (un nivel
+// antes de Fundaciones — ancla el arranque de la curva). Confirmado contra
+// el Excel de referencia de María Paz (columna "Pisos" de la hoja "Completar
+// Piso OG": con 1 subterráneo, Inicio fund.=-2, Fundaciones=-1, Sub1=0…).
 function logica_pisoOGValor(nivel, subterraneos) {
   subterraneos = subterraneos || 0;
+  if (nivel === 'Inicio fundaciones') return -subterraneos - 1;
   if (nivel === 'Fundaciones') return -subterraneos;
   const mSub = /^Subterráneo (\d+)$/.exec(nivel || '');
   if (mSub) return 1 - parseInt(mSub[1], 10);
