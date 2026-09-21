@@ -445,6 +445,58 @@ function og_cruzarSemanas(programacionOG, historialOG) {
   return lista;
 }
 
+// ── Piso OG real, escalonado (para el gráfico de Terminaciones) ─────────────
+// A partir de los niveles con fecha de término ingresados en "Piso OG"
+// (config.pisoOG), arma una curva ESCALONADA de piso aproximado por semana:
+// cada nivel terminado se ubica en el viernes siguiente a su fecha; entre un
+// hito y el siguiente el valor se mantiene plano (nada de interpolar en
+// diagonal); y no se extiende más allá de la semana de control — pedido de
+// María Paz: si no se ha terminado un piso nuevo, la plana llega hasta la
+// semana de control y ahí se corta, sin seguir "eterna" hacia semanas
+// futuras sin dato. Devuelve { 'YYYY-MM-DD': piso, ... }, una entrada por
+// cada semana entre el primer hito y ese tope (inclusive).
+function og_pisoRealEscalonado(config, semanaControl) {
+  const niveles = (config.pisoOG || []).filter(function(n) { return n.fechaTermino; });
+  if (!niveles.length) return {};
+
+  const hitos = niveles.map(function(n) {
+    return {
+      semana: (typeof logica_viernesSiguienteA === 'function') ? logica_viernesSiguienteA(n.fechaTermino) : n.fechaTermino,
+      piso: (typeof logica_pisoOGValor === 'function') ? logica_pisoOGValor(n.nivel, config.subterraneos) : null,
+    };
+  }).filter(function(h) { return h.piso !== null && h.piso !== undefined; })
+    .sort(function(a, b) { return a.semana.localeCompare(b.semana); });
+
+  if (!hitos.length) return {};
+
+  // Si varios niveles terminan la misma semana, se queda con el piso más alto.
+  const porSemana = {};
+  hitos.forEach(function(h) {
+    porSemana[h.semana] = (porSemana[h.semana] === undefined) ? h.piso : Math.max(porSemana[h.semana], h.piso);
+  });
+
+  const primeraSemana = hitos[0].semana;
+  const ultimaConDato = hitos[hitos.length - 1].semana;
+  // Tope: la semana de control, pero nunca antes de la última semana con
+  // dato real (no se puede "esconder" un piso ya terminado aunque la fecha
+  // de control esté atrasada).
+  const tope = (semanaControl && semanaControl > ultimaConDato) ? semanaControl : ultimaConDato;
+
+  const resultado = {};
+  let cursor = primeraSemana;
+  let valorActual = null;
+  let guarda = 0; // corta cualquier bucle accidental (fechas corruptas, etc.)
+  while (cursor <= tope && guarda < 1000) {
+    if (porSemana[cursor] !== undefined) valorActual = porSemana[cursor];
+    resultado[cursor] = valorActual;
+    const d = new Date(cursor + 'T12:00:00');
+    d.setDate(d.getDate() + 7);
+    cursor = d.toISOString().slice(0, 10);
+    guarda++;
+  }
+  return resultado;
+}
+
 // ── Vista "Consolidado Obra Gruesa" — tabla editable ─────────────────────────
 let _ogCons_anclaInput = null;
 

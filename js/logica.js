@@ -241,13 +241,37 @@ function logica_semanaLabel(isoStr) {
   return 'Sem. ' + logica_formatearFecha(isoStr);
 }
 
+// Viernes siguiente a una fecha cualquiera (o la misma fecha, si ya cae en
+// viernes) — usada para ubicar en el gráfico un hito que no necesariamente
+// ocurrió un viernes (p.ej. una fecha de término de "Piso OG").
+function logica_viernesSiguienteA(fechaISO) {
+  const d = new Date(fechaISO + 'T12:00:00');
+  const dia = d.getDay(); // 0=Dom … 6=Sab
+  d.setDate(d.getDate() + (5 - dia + 7) % 7);
+  return d.toISOString().slice(0, 10);
+}
+
 // Viernes de la semana calendario actual (hoy), en YYYY-MM-DD. Misma cuenta
 // que ya usaba el botón "Usar viernes de esta semana" de la barra de control
 // (semana-control.js) — movida acá para poder reutilizarla también desde
 // Obra Gruesa (avisar si la fecha de control quedó desactualizada).
 function logica_viernesDeEstaSemana() {
-  const hoy = new Date();
-  const dia = hoy.getDay(); // 0=Dom … 6=Sab
-  hoy.setDate(hoy.getDate() + (5 - dia + 7) % 7);
-  return hoy.toISOString().slice(0, 10);
+  return logica_viernesSiguienteA(new Date().toISOString().slice(0, 10));
+}
+
+// Convierte un nivel de la pestaña "Piso OG" (Fundaciones / Subterráneo N /
+// Piso N) al mismo eje "piso aproximado" que usa el gráfico de Terminaciones
+// — para poder graficar ambas curvas juntas. Piso N → N; Subterráneo k → 1-k
+// (Subterráneo 1, el más cercano a superficie, → 0); Fundaciones →
+// -subterraneos (justo debajo del subterráneo más profundo). Confirmado
+// contra el Excel de referencia de María Paz (columna "Pisos" de la hoja
+// "Completar Piso OG": con 1 subterráneo, Fundaciones=-1, Sub1=0, Piso1=1…).
+function logica_pisoOGValor(nivel, subterraneos) {
+  subterraneos = subterraneos || 0;
+  if (nivel === 'Fundaciones') return -subterraneos;
+  const mSub = /^Subterráneo (\d+)$/.exec(nivel || '');
+  if (mSub) return 1 - parseInt(mSub[1], 10);
+  const mPiso = /^Piso (\d+)$/.exec(nivel || '');
+  if (mPiso) return parseInt(mPiso[1], 10);
+  return null;
 }

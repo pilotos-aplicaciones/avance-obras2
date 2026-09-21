@@ -168,8 +168,33 @@ function _graf_renderOG(panel, config, historialOG) {
 
 function _graf_renderTerminaciones(panel, config, historial) {
   const programacion = config.programacion || [];
-  const filas = (typeof consolidado_cruzarSemanas === 'function') ? consolidado_cruzarSemanas(config, historial, programacion) : [];
+  let filas = (typeof consolidado_cruzarSemanas === 'function') ? consolidado_cruzarSemanas(config, historial, programacion) : [];
   const fases = (typeof logica_fasesEfectivas === 'function') ? logica_fasesEfectivas(config) : [1, 2, 3, 4, 5, 6];
+
+  // Curva de Obra Gruesa (piso) superpuesta al gráfico de Terminaciones —
+  // pedido de María Paz. Programado: ya viene por semana en cada fila
+  // (fila.pisoOGProg, columna "Piso App Obra Gruesa" del Excel). Real: se
+  // arma aparte a partir de "Piso OG" (fechas de término → escalón), y como
+  // esas semanas pueden no existir todavía en `filas` (p.ej. muy al inicio
+  // de la obra, antes de que arranque la programación de Terminaciones), se
+  // agregan acá — solo para este gráfico, sin tocar consolidado_cruzarSemanas
+  // (que también alimenta la tabla Consolidado).
+  const ctrl = (typeof datos_cargarSemanaControl === 'function') ? datos_cargarSemanaControl(config.id) : null;
+  const pisoOGRealPorSemana = (typeof og_pisoRealEscalonado === 'function') ? og_pisoRealEscalonado(config, ctrl && ctrl.semana) : {};
+
+  const filasPorSemana = {};
+  filas.forEach(function(f) { filasPorSemana[f.semana] = f; });
+  Object.keys(pisoOGRealPorSemana).forEach(function(semana) {
+    if (!filasPorSemana[semana]) {
+      const nueva = { semana: semana, fechaInicio: null, fechaTermino: semana, prog: {}, real: {} };
+      filasPorSemana[semana] = nueva;
+      filas.push(nueva);
+    }
+  });
+  filas.sort(function(a, b) { return (a.semana || '').localeCompare(b.semana || ''); });
+  filas.forEach(function(f) {
+    if (pisoOGRealPorSemana[f.semana] !== undefined) f.pisoOGReal = pisoOGRealPorSemana[f.semana];
+  });
 
   if (!filas.length) {
     return `<div class="graf-bloque">
@@ -190,6 +215,8 @@ function _graf_renderTerminaciones(panel, config, historial) {
       if (p && p.piso !== null && p.piso !== undefined) { minY = Math.min(minY, p.piso); maxY = Math.max(maxY, p.piso); }
       if (r && r.piso !== null && r.piso !== undefined) { minY = Math.min(minY, r.piso); maxY = Math.max(maxY, r.piso); }
     });
+    if (fila.pisoOGProg !== null && fila.pisoOGProg !== undefined) { minY = Math.min(minY, fila.pisoOGProg); maxY = Math.max(maxY, fila.pisoOGProg); }
+    if (fila.pisoOGReal !== null && fila.pisoOGReal !== undefined) { minY = Math.min(minY, fila.pisoOGReal); maxY = Math.max(maxY, fila.pisoOGReal); }
   });
   const padY = (maxY - minY) * 0.08 || 1;
   minY -= padY; maxY += padY;
@@ -242,6 +269,12 @@ function _graf_renderTerminaciones(panel, config, historial) {
     if (realPts) svgLineas += `<polyline points="${realPts}" fill="none" stroke="${c.enc}" stroke-width="2.5"/>`;
   });
 
+  // Curva de Obra Gruesa (piso) — siempre negra, pedido explícito de María Paz.
+  const ogProgPts = polyline(function(fila) { return (fila.pisoOGProg !== null && fila.pisoOGProg !== undefined) ? fila.pisoOGProg : null; });
+  const ogRealPts = polyline(function(fila) { return (fila.pisoOGReal !== null && fila.pisoOGReal !== undefined) ? fila.pisoOGReal : null; });
+  if (ogProgPts) svgLineas += `<polyline points="${ogProgPts}" fill="none" stroke="${OG_COLOR.enc}" stroke-width="2" stroke-dasharray="5,4"/>`;
+  if (ogRealPts) svgLineas += `<polyline points="${ogRealPts}" fill="none" stroke="${OG_COLOR.enc}" stroke-width="2.5"/>`;
+
   // Grilla vertical (una línea por semana) + etiquetas del eje X — TODAS las
   // semanas, inclinadas y/o comprimidas según el ancho real disponible.
   let grillaXLineas = '', etiquetasX = '';
@@ -267,7 +300,9 @@ function _graf_renderTerminaciones(panel, config, historial) {
     const c = FASE_COLORES[f];
     const nombre = NOMBRES_FASES[f].split('–')[0].trim();
     return `<span class="graf-leyenda-item"><i class="graf-dot" style="background:${c.enc}"></i>${nombre}</span>`;
-  }).join('');
+  }).join('') + (ogProgPts || ogRealPts
+    ? `<span class="graf-leyenda-item"><i class="graf-dot" style="background:${OG_COLOR.enc}"></i>Obra Gruesa (piso)</span>`
+    : '');
 
   return `<div class="graf-bloque">
     <div class="graf-bloque-titulo">🎨 Terminaciones</div>
